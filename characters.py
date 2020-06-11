@@ -3,7 +3,9 @@ import pygame
 from pygame.locals import *
 from items import Weapon, Outfit
 import time
+from copy import deepcopy
 
+slm = np.logspace(0.3, -0.8, 20) # shadow length modifiers
 
 class NPC:
     """ Superclass for non-player characters """
@@ -38,6 +40,7 @@ class Combat_Dummy(NPC):
         self._shadow = None
         self._healthbar = None
         self._last_hit_timer = 60
+        self._prev_shadow_state = None
 
 
     def take_damage(self, damage):
@@ -52,7 +55,7 @@ class Combat_Dummy(NPC):
             self._last_hit_timer = 0
 
     
-    def step(self):
+    def step(self, day_time):
         images = self._default_images
         if self._state != "idle":
             if self._anim_step < 8:
@@ -81,11 +84,29 @@ class Combat_Dummy(NPC):
         else:
             self._healthbar = None
         
-        if self._shadow == None or self._state != "idle":
-            self._shadow = pygame.transform.flip(pygame.transform.scale(character_surf, (self._sprite_size, self._sprite_size//2)), 0, 1)
-            self.color_surface(self._shadow, 50, 50, 50, 150)
+        shadow_state = int(day_time//5)
+
+        if self._shadow == None or self._state != "idle" or shadow_state != self._prev_shadow_state:
+            if shadow_state < 20:
+                self._shadow = pygame.transform.flip(pygame.transform.scale(character_surf, (self._sprite_size, int(self._sprite_size*slm[shadow_state]))), 0, 1)
+            elif shadow_state < 40:
+                self._shadow = pygame.transform.scale(character_surf, (self._sprite_size, int(self._sprite_size*slm[19 - shadow_state]/2)))
+            
+            if shadow_state >= 40:
+                alpha_modifier = 0
+            else:
+                alpha_modifier = 1
+
+            self.color_surface(self._shadow, 50, 50, 50, (150 - 6*abs(20 - shadow_state))*alpha_modifier)
+
+        self._prev_shadow_state = shadow_state
 
         return self._position, character_surf, self._shadow, self._hitbox, self._y_shift, self._healthbar
+
+
+    @property
+    def position(self):
+        return self._position
 
 
 class Player:
@@ -93,10 +114,16 @@ class Player:
                  walkcycle_images,
                  slash_images,
                  thrust_images,
+                 bow_images,
+                 hurt_images,
                  starting_outfit):
         self.walkcycle = [walkcycle_images["BODY_male"], walkcycle_images["HEAD_hair_blonde"]]
         self.slash = [slash_images["BODY_male"], slash_images["HEAD_hair_blonde"]]
         self.thrust = [thrust_images["BODY_male"], thrust_images["HEAD_hair_blonde"]]
+        self.bow = [bow_images["BODY_male"], bow_images["HEAD_hair_blonde"]]
+        self.hurt = [hurt_images["BODY_male"], hurt_images["HEAD_hair_blonde"]]
+
+        self.behind = []
 
         self._outfit = starting_outfit
 
@@ -116,12 +143,22 @@ class Player:
         self._speed = 2
         self._anim_speed = 0.5
         self._health = 100
-        self._stamina = 100
+        self._maxhealth = self._health
+        self._stamina = 1000
+        self._maxstamina = self._stamina
         self.id = f"{self.__class__.__name__}-{id(self)}"
+        self._shadow = None
+        self._prev_shadow_state = None
+        self._shadowlength_modifier = 1
 
 
     def take_damage(self, damage):
-        self._health -= damage
+        if self._state != "dead":
+            self._health -= damage
+            if self._health <= 0:
+                self.set_state("dead")
+                self._health = 0
+                self._facing = 0
 
     
     def add_outfit(self, outfit):
@@ -176,6 +213,7 @@ class Player:
 
 
     def set_state(self, state):
+        self._shadowlength_modifier = 1
         if state == "walk":
             self._state = "walk"
             self._body = [self.walkcycle[0]]
@@ -200,6 +238,20 @@ class Player:
             self._hair = [self.walkcycle[1]]
             self._outfit_anim = self._outfit.walkcycle
             self._weapon_anim = []
+        elif state == "bow":
+            self._state = "bow"
+            self._body = [self.bow[0]]
+            self._hair = [self.bow[1]]
+            self._outfit_anim = self._outfit.bow
+            self._weapon_anim = self._equipped_weapon.bow
+        elif state == "dead":
+            self._state = "dead"
+            self._body = [self.hurt[0]]
+            self._hair = [self.hurt[1]]
+            self._outfit_anim = self._outfit.hurt
+            self._weapon_anim = []
+            self._facing = 0
+            self._shadowlength_modifier = 0.3
         self._anim_step = 0
 
 
@@ -215,7 +267,7 @@ class Player:
         return attac_rect
 
 
-    def step(self, action = None, move_array = np.zeros(4), sprint = False):
+    def step(self, day_time, action = None, move_array = np.zeros(4), sprint = False):
         attack_rect = None
         if self._state != "idle":
             self._anim_step += self._anim_speed
@@ -234,13 +286,37 @@ class Player:
                 if self._anim_step > 7:
                     self._anim_step = 0
                     self.set_state("idle")
+            if self._state == "bow":
+                if self._anim_step == 10:
+                    self._equipped_weapon.facing = self._facing
+                    attack_rect = self.get_weapon_hit_rect()
+                if self._anim_step > 11:
+                    if action == 4:
+                        if self._anim_step > 12:
+                            self._anim_step = 4
+                    else:
+                        self._anim_step = 0
+                        self.set_state("idle")
+            if self._state == "dead":
+                if self._anim_step > 5:
+                    self._anim_step = 5
         else:
             self._anim_step = 0
 
         if sprint and self._state == "walk":
-            self._speed = 4
-            self._anim_speed = 1
+            self._stamina -= 0.5
+            if self._stamina > 0:
+                self._speed = 4
+                self._anim_speed = 1
+            else:
+                self._speed = 2
+                self._anim_speed = 0.5
+                self._stamina = 0
         else:
+            if self._stamina < self._maxstamina:
+                self._stamina += 0.4
+            elif self._stamina > self._maxstamina:
+                self._stamina = self._maxstamina
             self._speed = 2
             self._anim_speed = 0.5
 
@@ -256,35 +332,33 @@ class Player:
             elif move_array[3]:
                 movement[0] = self._speed
 
-        if action == 0:
-            # up
-            self._facing = 0
-            if self._state == "idle":
-                self.set_state("walk")
-        elif action == 1:
-            # left
-            self._facing = 1
-            if self._state == "idle":
-                self.set_state("walk")
-        elif action == 2:
-            # down
-            self._facing = 2
-            if self._state == "idle":
-                self.set_state("walk")
-        elif action == 3:
-            # right
-            self._facing = 3
-            if self._state == "idle":
-                self.set_state("walk")
-        elif action == 4:
-            if self._state == "idle" or (self._state == "walk" and self._anim_step == 8):
-                if self._equipped_weapon.type == "slash":
-                    self.set_state("slash")
-                elif self._equipped_weapon.type == "thrust":
-                    self.set_state("thrust")
-        else:
-            if self._state == "walk":
-                self.set_state("idle")
+        if self._state != "dead":
+            if action == 0:
+                # up
+                self._facing = 0
+                if self._state == "idle":
+                    self.set_state("walk")
+            elif action == 1:
+                # left
+                self._facing = 1
+                if self._state == "idle":
+                    self.set_state("walk")
+            elif action == 2:
+                # down
+                self._facing = 2
+                if self._state == "idle":
+                    self.set_state("walk")
+            elif action == 3:
+                # right
+                self._facing = 3
+                if self._state == "idle":
+                    self.set_state("walk")
+            elif action == 4:
+                if self._state == "idle" or (self._state == "walk" and self._anim_step == 8):
+                    self.set_state(self._equipped_weapon.type)
+            else:
+                if self._state == "walk":
+                    self.set_state("idle")
 
         sprite_y = int(self._facing*self._sprite_size)
         sprite_x = int(self._anim_step)*self._sprite_size
@@ -301,13 +375,44 @@ class Player:
         
         hitbox = pygame.Rect(self._position[0] - 12, self._position[1] - 5, 24, 32)
 
-        return self._position, player_surf, [attack_rect, self.equipped_weapon], hitbox, movement
+        shadow_state = int(day_time//5)
+
+        if self._shadow == None or self._state != "idle" or shadow_state != self._prev_shadow_state or self._anim_step == 0:
+            if shadow_state < 20:
+                self._shadow = pygame.transform.flip(pygame.transform.scale(player_surf, (self._sprite_size, int(self._sprite_size*slm[shadow_state]*self._shadowlength_modifier))), 0, 1)
+            elif shadow_state < 40:
+                self._shadow = pygame.transform.scale(player_surf, (self._sprite_size, int(self._sprite_size*slm[19 - shadow_state]/2*self._shadowlength_modifier)))
+            
+            if shadow_state >= 40:
+                alpha_modifier = 0
+            else:
+                alpha_modifier = 1.5
+
+            self.color_surface(self._shadow, 50, 50, 50, (150 - 6*abs(20 - shadow_state))*alpha_modifier)
+
+        self._prev_shadow_state = shadow_state
+
+        return self._position, player_surf, [attack_rect, self.equipped_weapon], hitbox, movement, self._shadow
 
 
     def set_pos(self, pos):
         self._position = pos
 
+
+    def color_surface(self, surface, red, green, blue, alpha):
+        arr = pygame.surfarray.pixels3d(surface)
+        arr[:,:,0] = red
+        arr[:,:,1] = green
+        arr[:,:,2] = blue
+
+        alphas = pygame.surfarray.pixels_alpha(surface)
+        alphas[alphas != 0] = alpha
+
     
+    @property
+    def position(self):
+        return self._position
+
     @property
     def equipped_weapon(self):
         return self._equipped_weapon
@@ -321,5 +426,13 @@ class Player:
         return self._health
 
     @property
+    def maxhealth(self):
+        return self._maxhealth
+
+    @property
     def stamina(self):
         return self._stamina
+
+    @property
+    def maxstamina(self):
+        return self._maxstamina

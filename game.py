@@ -5,7 +5,7 @@ import glob
 import pygame
 from pygame.locals import *
 from characters import Player, Combat_Dummy
-from items import Weapon, Outfit
+from items import Weapon, Outfit, Arrow, Projectile
 
 
 class Game:
@@ -14,6 +14,8 @@ class Game:
         self._screen = None
         self._width = 1280
         self._height = 800
+        self._mapwidth = 1280*2
+        self._mapheight = 800*2
         self._cam_x = 0
         self._cam_y = 0
         self._size = (self._width, self._height)
@@ -21,7 +23,11 @@ class Game:
         self.WHITE = (255, 255, 255)
         self.GREY = (150, 150, 150)
         self.RED = (255, 0, 0)
+        self.DARKERRED = (200, 0, 0)
+        self.DARKRED = (50, 0, 0)
         self.GREEN = (0, 255, 0)
+        self.DARKERGREEN = (0, 200, 0)
+        self.DARKGREEN = (0, 50, 0)
         self.BLUE = (0, 0, 255)
         self.BLACK = (0, 0, 0)
 
@@ -69,9 +75,10 @@ class Game:
         return img
 
 
-    def setup_outfits(self):
+    """ Outfit definitions """
+    def make_unhooded_robe(self):
         robe_icon = self.get_icon("robe")
-        robe = Outfit("Unhooded robe", robe_icon, armor = 1)
+        robe = Outfit("Unhooded robe", robe_icon, armor = 2)
         robe.walkcycle = [self._walkcycle_images["FEET_shoes_brown"],
                           self._walkcycle_images["LEGS_robe_skirt"],
                           self._walkcycle_images["TORSO_robe_shirt_brown"]]
@@ -81,7 +88,16 @@ class Game:
         robe.thrust = [self._thrust_images["FEET_shoes_brown"],
                        self._thrust_images["LEGS_robe_skirt"],
                        self._thrust_images["TORSO_robe_shirt_brown"]]
+        robe.hurt = [self._hurt_images["FEET_shoes_brown"],
+                     self._hurt_images["LEGS_robe_skirt"],
+                     self._hurt_images["TORSO_robe_shirt_brown"]]
+        robe.bow = [self._bow_images["FEET_shoes_brown"],
+                    self._bow_images["LEGS_robe_skirt"],
+                    self._bow_images["TORSO_robe_shirt_brown"]]
 
+        return robe
+
+    def make_platearmor(self):
         platearmor_icon = self.get_icon("platearmor")
         platearmor = Outfit("Plate armor", platearmor_icon, has_hood = True, armor = 5)
         platearmor.walkcycle = [self._walkcycle_images["FEET_plate_armor_shoes"],
@@ -90,24 +106,52 @@ class Game:
                                 self._walkcycle_images["TORSO_plate_armor_arms_shoulders"],
                                 self._walkcycle_images["HEAD_plate_armor_helmet"],
                                 self._walkcycle_images["HANDS_plate_armor_gloves"]]
-        
         platearmor.slash = [self._slash_images["FEET_plate_armor_shoes"],
                             self._slash_images["LEGS_plate_armor_pants"],
                             self._slash_images["TORSO_plate_armor_torso"],
                             self._slash_images["TORSO_plate_armor_arms_shoulders"],
                             self._slash_images["HEAD_plate_armor_helmet"],
                             self._slash_images["HANDS_plate_armor_gloves"]]
-
         platearmor.thrust = [self._thrust_images["FEET_plate_armor_shoes"],
                              self._thrust_images["LEGS_plate_armor_pants"],
                              self._thrust_images["TORSO_plate_armor_torso"],
                              self._thrust_images["TORSO_plate_armor_arms_shoulders"],
                              self._thrust_images["HEAD_plate_armor_helmet"],
                              self._thrust_images["HANDS_plate_armor_gloves"]]
+        platearmor.hurt = [self._hurt_images["FEET_plate_armor_shoes"],
+                           self._hurt_images["LEGS_plate_armor_pants"],
+                           self._hurt_images["TORSO_plate_armor_torso"],
+                           self._hurt_images["TORSO_plate_armor_arms_shoulders"],
+                           self._hurt_images["HEAD_plate_armor_helmet"],
+                           self._hurt_images["HANDS_plate_armor_gloves"]]
+        platearmor.bow = [self._bow_images["FEET_plate_armor_shoes"],
+                          self._bow_images["LEGS_plate_armor_pants"],
+                          self._bow_images["TORSO_plate_armor_torso"],
+                          self._bow_images["TORSO_plate_armor_arms_shoulders"],
+                          self._bow_images["HEAD_plate_armor_helmet"],
+                          self._bow_images["HANDS_plate_armor_gloves"]]
 
-        self.outfits = [robe, platearmor]
-        self.robe = robe
-        self.platearmor = platearmor
+        return platearmor
+        
+
+    """ Weapon definitions """
+    def make_dagger(self):
+        dagger_icon = self.get_icon("dagger")
+        dagger = Weapon("Dagger", dagger_icon, damage = 10)
+        dagger.slash = [self._slash_images["WEAPON_dagger"]]
+        return dagger
+
+    def make_spear(self):
+        spear_icon = self.get_icon("spear")
+        spear = Weapon("Spear", spear_icon, "thrust", range_ = 30, damage = 20)
+        spear.thrust = [self._thrust_images["WEAPON_spear"]]
+        return spear
+
+    def make_bow(self):
+        bow_icon = self.get_icon("bow")
+        bow = Weapon("Bow", bow_icon, "bow", range_ = 10, damage = 0, projectile = Arrow) # damage = 0 -> ranged weapon
+        bow.bow = [self._bow_images["WEAPON_bow"], self._bow_images["WEAPON_arrow"]]
+        return bow
 
 
     def init_game(self):
@@ -126,6 +170,8 @@ class Game:
         self._screen.blit(self.loadingtext, (5,5))
         pygame.display.flip()
         print("Loading...")
+
+        self._light = pygame.image.load(os.path.join(os.getcwd(), "graphics", "Radial_Gradient.png"))
 
         pygame.mixer.init()
         pygame.mixer.music.load(os.path.join(os.getcwd(), "music", "pugnateii.mp3"))
@@ -151,40 +197,34 @@ class Game:
         self.load_image_folder("slash", self._slash_images)
         self.load_image_folder("spellcast", self._spellcast_images)
         self.load_image_folder("thrust", self._thrust_images)
-
         self.load_image_folder("combat_dummy", self._combat_dummy_images)
 
-        self.setup_outfits()
-
-        dagger_icon = self.get_icon("dagger")
-        dagger = Weapon("Dagger", dagger_icon, damage = 10)
-        dagger.slash = [self._slash_images["WEAPON_dagger"]]
-
-        spear_icon = self.get_icon("spear")
-        spear = Weapon("Spear", spear_icon, "thrust", range_ = 30, damage = 20)
-        spear.thrust = [self._thrust_images["WEAPON_spear"]]
+        self._images = {"walkcycle": self._walkcycle_images,
+                        "bow": self._bow_images,
+                        "hurt": self._hurt_images,
+                        "slash": self._slash_images,
+                        "spellcast": self._spellcast_images,
+                        "thrust": self._thrust_images,
+                        "combat_dummy": self._combat_dummy_images}
 
         hands_icon = self.get_icon("hands")
         hands = Weapon("Hands", hands_icon, "slash", damage = 2)
 
+        robe = self.make_unhooded_robe()
+
         self.player = Player(300, 300,
-                             self._walkcycle_images,
+                             self._walkcycle_images, 
                              self._slash_images,
                              self._thrust_images,
-                             self.robe)
-
-        self.player.add_outfit(self.platearmor)
+                             self._bow_images,
+                             self._hurt_images,
+                             robe)
 
         self.player.add_to_inventory(hands)
         self.player.equip_weapon("Hands")
-        self.player.add_to_inventory(dagger)
-        self.player.add_to_inventory(spear)
 
         self.npcs = []
-        self.npcs.append(Combat_Dummy(self._combat_dummy_images["BODY_animation"], self._combat_dummy_images["BODY_death"], 700, 60))
-
-        for i in range(9):
-            self.npcs.append(Combat_Dummy(self._combat_dummy_images["BODY_animation"], self._combat_dummy_images["BODY_death"], np.random.randint(350,900), np.random.randint(0,700)))
+        self._projectiles = []
 
         self._paused = False
         self._inventory = False
@@ -195,8 +235,10 @@ class Game:
 
         self._day_time = 0
 
-        pygame.mixer.music.play(loops = -1)
-        pygame.mixer.music.set_volume(0.2)
+        #pygame.mixer.music.play(loops = -1)
+        #pygame.mixer.music.set_volume(0.1)
+
+        self._loop_func = self.standard_loop
 
 
     def on_event(self, event):
@@ -229,11 +271,134 @@ class Game:
                     self._pausebg = self._screen.copy()
 
 
+    def standard_loop(self, action, move_array, key_states):
+        """ Normal gameplay loop """
+        """ Player step """
+        self._player_data = self.player.step(self._day_time, action, move_array, key_states[pygame.K_LSHIFT])
+
+        if self._player_data[2][0] is not None:
+            rect = self._player_data[2][0]
+            attack_weapon = self._player_data[2][1]
+            if attack_weapon.projectile is not None:
+                direction = attack_weapon.facing
+                x, y = rect.center
+                if direction == 1 or direction == 3:
+                    y -= 12
+                new_projectile = attack_weapon.projectile(x, y, direction)
+                img_ = new_projectile.image
+                layer = self._images[img_[0]][img_[1]]
+                projectile_surf = pygame.Surface((64, 64), pygame.SRCALPHA)
+                if direction != 0:
+                    projectile_surf.blit(layer, (0, 0), (768, int(direction*64), 64, 64))
+                else:
+                    projectile_surf.blit(layer, (0, 0), (768, 128, 64, 64))
+                    projectile_surf = pygame.transform.flip(projectile_surf, 1, 1)
+
+                self._projectiles.append([new_projectile, projectile_surf])
+            else:
+                self.attack_rects[self.player] = self._player_data[2]
+
+        self.hitboxes[self.player] = self._player_data[3]
+
+        """ NPC steps """
+        self._npc_datas = []
+        for npc in self.npcs:
+            npc_data = npc.step(self._day_time)
+            self.hitboxes[npc] = npc_data[3]
+            self._npc_datas.append(npc_data)
+
+        del_projectiles = []
+        for projectile in self._projectiles:
+            hitbox = projectile[0].step()
+            if projectile[0].timer > 5 and projectile[0].timer <= 200:
+                self.attack_rects[projectile[0]] = [hitbox, projectile]
+            elif projectile[0].timer > 200:
+                del_projectiles.append(projectile)
+
+        """ Check hitboxes for weapon hits """
+        for actor, attack_rect in self.attack_rects.items():
+            attack_rect, attack_weapon = attack_rect
+            for target, hitbox in self.hitboxes.items():
+                if actor == target or attack_rect is None:
+                    continue
+                if attack_rect.colliderect(hitbox):
+                    try:
+                        if isinstance(attack_weapon, list):
+                            target.take_damage(attack_weapon[0].damage)
+                            if isinstance(attack_weapon[0], Projectile):
+                                del_projectiles.append(attack_weapon)
+                        else:
+                            target.take_damage(attack_weapon.damage)
+                    except AttributeError:
+                        pass
+
+        for projectile in del_projectiles:
+            if projectile in self._projectiles:
+                self._projectiles.remove(projectile)
+
+        candidate_pos = self._player_data[0].copy()
+        playerhitbox = self.hitboxes[self.player]
+        movement_x = self._player_data[4][0]
+        movement_y = self._player_data[4][1]
+
+        """ Collision testing the player """
+        if movement_x > 0:
+            for target, hitbox in self.hitboxes.items():
+                if target == self.player:
+                    continue
+                candidate_hitbox = playerhitbox.move(movement_x + 1, 0)
+                if candidate_hitbox.colliderect(hitbox):
+                    movement_x = 0
+        elif movement_x < 0:
+            for target, hitbox in self.hitboxes.items():
+                if target == self.player:
+                    continue
+                candidate_hitbox = playerhitbox.move(movement_x - 1, 0)
+                if candidate_hitbox.colliderect(hitbox):
+                    movement_x = 0
+
+        if movement_y > 0:
+            for target, hitbox in self.hitboxes.items():
+                if target == self.player:
+                    continue
+                candidate_hitbox = playerhitbox.move(0, movement_y + 1)
+                if candidate_hitbox.colliderect(hitbox):
+                    movement_y = 0
+        elif movement_y < 0:
+            for target, hitbox in self.hitboxes.items():
+                if target == self.player:
+                    continue
+                candidate_hitbox = playerhitbox.move(0, movement_y - 1)
+                if candidate_hitbox.colliderect(hitbox):
+                    movement_y = 0
+
+        candidate_pos[0] += movement_x
+        candidate_pos[1] += movement_y
+
+        self.player.set_pos(candidate_pos)
+
+        """ Move camera if player is moving towards an edge """
+        while candidate_pos[0] - self._cam_x >= self._width - 200:
+            self._cam_x += abs(movement_x)
+        while candidate_pos[1] - self._cam_y >= self._height - 200:
+            self._cam_y += abs(movement_y)
+        while candidate_pos[0] - self._cam_x <= 200:
+            self._cam_x -= abs(movement_x)
+        while candidate_pos[1] - self._cam_y <= 200:
+            self._cam_y -= abs(movement_y)
+
+        self._day_time += 0.1
+        if self._day_time >= 400:
+            self._day_time = 0
+
+
     def loop(self):
         self.attack_rects = {}
         self.hitboxes = {}
         if not self._paused:
             """ Unpaused loop """
+
+            """ Player controls """
             key_states = pygame.key.get_pressed()
             move_array = np.zeros(4)
             action = None
@@ -252,77 +417,7 @@ class Game:
                 action = 3
                 move_array[3] = 1
             
-            self._player_data = self.player.step(action, move_array, key_states[pygame.K_LSHIFT])
-
-            if self._player_data[2] is not None:
-                self.attack_rects[self.player] = self._player_data[2]
-
-            self.hitboxes[self.player] = self._player_data[3]
-
-            self._npc_datas = []
-
-            for npc in self.npcs:
-                npc_data = npc.step()
-                self.hitboxes[npc] = npc_data[3]
-                self._npc_datas.append(npc_data)
-
-            for actor, attack_rect in self.attack_rects.items():
-                attack_rect, attack_weapon = attack_rect
-                for target, hitbox in self.hitboxes.items():
-                    if actor == target or attack_rect is None:
-                        continue
-                    if attack_rect.colliderect(hitbox):
-                        target.take_damage(attack_weapon.damage)
-
-            candidate_pos = self._player_data[0].copy()
-            playerhitbox = self.hitboxes[self.player]
-            movement_x = self._player_data[4][0]
-            movement_y = self._player_data[4][1]
-
-            """ Collision testing the player """
-
-            if movement_x > 0:
-                for target, hitbox in self.hitboxes.items():
-                    if target == self.player:
-                        continue
-                    candidate_hitbox = playerhitbox.move(movement_x + 1, 0)
-                    if candidate_hitbox.colliderect(hitbox):
-                        movement_x = 0
-            elif movement_x < 0:
-                for target, hitbox in self.hitboxes.items():
-                    if target == self.player:
-                        continue
-                    candidate_hitbox = playerhitbox.move(movement_x - 1, 0)
-                    if candidate_hitbox.colliderect(hitbox):
-                        movement_x = 0
-
-            if movement_y > 0:
-                for target, hitbox in self.hitboxes.items():
-                    if target == self.player:
-                        continue
-                    candidate_hitbox = playerhitbox.move(0, movement_y + 1)
-                    if candidate_hitbox.colliderect(hitbox):
-                        movement_y = 0
-            elif movement_y < 0:
-                for target, hitbox in self.hitboxes.items():
-                    if target == self.player:
-                        continue
-                    candidate_hitbox = playerhitbox.move(0, movement_y - 1)
-                    if candidate_hitbox.colliderect(hitbox):
-                        movement_y = 0
-
-            candidate_pos[0] += movement_x
-            candidate_pos[1] += movement_y
-
-            self.player.set_pos(candidate_pos)
-            while candidate_pos[0] - self._cam_x >= self._width - 200:
-                self._cam_x += abs(movement_x)
-            while candidate_pos[1] - self._cam_y >= self._height - 200:
-                self._cam_y += abs(movement_y)
-            while candidate_pos[0] - self._cam_x <= 200:
-                self._cam_x -= abs(movement_x)
-            while candidate_pos[1] - self._cam_y <= 200:
-                self._cam_y -= abs(movement_y)
+            self._loop_func(action, move_array, key_states)
         else:
             """ Paused loop """
             mouse_pos = pygame.mouse.get_pos()
@@ -334,72 +429,107 @@ class Game:
 
 
     def render(self):
-        cam_x = max(self._cam_x, 0)
-        cam_y = max(self._cam_y, 0)
+        cam_x = min(max(self._cam_x, 0), self._mapwidth - self._width)
+        cam_y = min(max(self._cam_y, 0), self._mapheight - self._height)
         campos = np.array([cam_x, cam_y])
         if not self._paused:
             self._screen.blit(self._grass_bg, (0 - cam_x, 0 - cam_y))
 
-            """ get player surfs """
+            shadow_state = int(self._day_time//5)
+
+            """ get player surf """
             p_position = self._player_data[0]
             player_surf = self._player_data[1]
+            shadow = self._player_data[5]
             sprite_size = player_surf.get_width()
 
             shadows = {}
-            character_surfs = []
-            character_positions = []
+            item_surfs = []
+            item_positions = []
             yshifts = []
             healthbars = []
 
-            shadow = pygame.transform.flip(pygame.transform.scale(player_surf, (sprite_size, sprite_size//2)), 0, 1)
-            self.color_surface(shadow, 50, 50, 50, 150)
-            shadows[shadow] = (p_position[0] - sprite_size//2, p_position[1] + sprite_size//2 - 6)
-            character_surfs.append(player_surf)
-            character_positions.append([p_position[0] - sprite_size//2, p_position[1] - sprite_size//2])
+            if shadow_state <= 20:
+                shadows[shadow] = (p_position[0] - sprite_size//2, p_position[1] + sprite_size//2 - 8)
+            else:
+                shadows[shadow] = (p_position[0] - sprite_size//2, p_position[1] + sprite_size//2 - shadow.get_height() - 3)
+
+            item_surfs.append(player_surf)
+            item_positions.append([p_position[0] - sprite_size//2, p_position[1] - sprite_size//2])
             yshifts.append(0)
 
             """ get NPC surfs """
-
             for npc_data in self._npc_datas:
                 npc_position = npc_data[0]
                 npc_surf = npc_data[1]
                 yshifts.append(npc_data[4])
                 shadow = npc_data[2]
-                shadow.set_alpha(50)
 
                 if npc_data[5] is not None:
                     healthbars.append(npc_data[5])
 
-                shadows[shadow] = (npc_position[0] - sprite_size//2, npc_position[1] + sprite_size//2 - 6)
+                if shadow_state <= 20:
+                    shadows[shadow] = (npc_position[0] - sprite_size//2, npc_position[1] + sprite_size//2 - 8)
+                else:
+                    shadows[shadow] = (npc_position[0] - sprite_size//2, npc_position[1] + sprite_size//2 - shadow.get_height() - 3)
 
-                character_surfs.append(npc_surf)
-                character_positions.append([npc_position[0] - sprite_size//2, npc_position[1] - sprite_size//2])
+                item_surfs.append(npc_surf)
+                item_positions.append([npc_position[0] - sprite_size//2, npc_position[1] - sprite_size//2])
 
-            character_surfs = np.array(character_surfs)
-            character_positions = np.array(character_positions)
+
+            """ get projectile surfs """
+            for projectile, surf in self._projectiles:
+                projectile_position = projectile.position - 32
+                item_surfs.append(surf)
+                item_positions.append(projectile_position)
+                yshifts.append(0)
+
+            item_surfs = np.array(item_surfs)
+            item_positions = np.array(item_positions)
             yshifts = np.array(yshifts)
 
-            inds = character_positions[:,1].argsort()
+            inds = item_positions[:,1].argsort()
             
-            character_surfs = character_surfs[inds]
-            character_positions = character_positions[inds]
+            item_surfs = item_surfs[inds]
+            item_positions = item_positions[inds]
             yshifts = yshifts[inds]
 
             """ Draw shadows """
-            for shadow, pos in shadows.items():
-                pos = np.array(pos) - campos
-                self._screen.blit(shadow, pos)
+            if self._day_time <= 200:
+                for shadow, pos in shadows.items():
+                    pos = np.array(pos) - campos
+                    self._screen.blit(shadow, pos)
 
+            """ Draw hitboxes if set true """
             if self._draw_hitboxes:
                 for a, hitbox in self.hitboxes.items():
                     hitbox.move_ip(-cam_x, -cam_y)
                     pygame.draw.rect(self._screen, self.WHITE, hitbox)
 
-            """ Draw characters """
-            for character_surf, pos, yshift in zip(character_surfs, character_positions, yshifts):
+            """ Draw characters and items """
+            for surf, pos, yshift in zip(item_surfs, item_positions, yshifts):
                 pos[1] += yshift
                 pos = pos.astype(int) - campos
-                self._screen.blit(character_surf, pos)
+                self._screen.blit(surf, pos)
+
+            
+            """ Draw night effect """
+            night = pygame.surface.Surface((self._width, self._height))
+            night.fill(self.BLACK)
+            alpha = None
+            if self._day_time > 175 and self._day_time < 250:
+                alpha = (255 - abs(250 - self._day_time)*3)/2  
+            elif self._day_time >= 250 and self._day_time < 350:
+                alpha = 255/2
+            elif self._day_time >= 350:
+                alpha = (255 - abs(350 - self._day_time)*3)/2
+            elif self._day_time <= 25:
+                alpha = (255 - abs(-self._day_time - 50)*3)/2
+
+            if alpha is not None:
+                night.set_alpha(alpha)
+                self._screen.blit(night, (0, 0))
+
 
             """ Draw healthbars """
             for healthbar in healthbars:
@@ -410,6 +540,37 @@ class Game:
                 pygame.draw.rect(self._screen, self.RED, bg)
                 if fg.width > 0:
                     pygame.draw.rect(self._screen, self.GREEN, fg)
+
+
+            """ Draw UI elements """
+            hour = int(self._day_time/400*24) + 1
+            if self._day_time < 200:
+                time_text = self.font_normal.render(f"It is currently hour: {hour}", self.AA_text, self.WHITE)
+            else:
+                time_text = self.font_normal.render(f"It is currently night", self.AA_text, self.WHITE)
+
+            hbar_width = 100
+            hbar_height = 20
+            health_width = int(self.player.health/self.player.maxhealth*hbar_width)
+            player_health_bg = pygame.Rect(self._width - 10 - hbar_width, self._height - 10 - hbar_height, hbar_width, hbar_height)
+            player_health_border = pygame.Rect(self._width - 11 - hbar_width, self._height - 11 - hbar_height, hbar_width + 2, hbar_height + 2)
+            player_health = pygame.Rect(self._width - 10 - hbar_width, self._height - 10 - hbar_height, health_width, hbar_height)
+            pygame.draw.rect(self._screen, self.GREY, player_health_border)
+            pygame.draw.rect(self._screen, self.DARKRED, player_health_bg)
+            if self.player.health > 0:
+                pygame.draw.rect(self._screen, self.DARKERRED, player_health)
+
+            stamina = max(self.player.stamina, 0)
+            stamina_width = int(stamina/self.player.maxstamina*hbar_width)
+            player_stamina_bg = pygame.Rect(self._width - 20 - hbar_width*2, self._height - 10 - hbar_height, hbar_width, hbar_height)
+            player_stamina_border = pygame.Rect(self._width - 21 - hbar_width*2, self._height - 11 - hbar_height, hbar_width + 2, hbar_height + 2)
+            player_stamina = pygame.Rect(self._width - 20 - hbar_width*2, self._height - 10 - hbar_height, stamina_width, hbar_height)
+            pygame.draw.rect(self._screen, self.GREY, player_stamina_border)
+            pygame.draw.rect(self._screen, self.DARKGREEN, player_stamina_bg)
+            if stamina > 0:
+                pygame.draw.rect(self._screen, self.DARKERGREEN, player_stamina)
+            
+            self._screen.blit(time_text, (5, self._height - 25))
 
 
         if self._paused:
@@ -482,7 +643,6 @@ class Game:
             icon = equipped_outfit.icon
             self._screen.blit(icon, (522, 74))
                 
-
         fps_text = self.font_normal.render(f"FPS: {self.fps:2.1f}", self.AA_text, self.WHITE)
         self._screen.blit(fps_text, (self._width - 80, 5))
 
