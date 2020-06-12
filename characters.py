@@ -7,6 +7,7 @@ from copy import deepcopy
 
 slm = np.logspace(0.3, -0.8, 20) # shadow length modifiers
 
+
 class NPC:
     """ Superclass for non-player characters """
     def __init__(self):
@@ -42,7 +43,6 @@ class Combat_Dummy(NPC):
         self._last_hit_timer = 60
         self._prev_shadow_state = None
 
-
     def take_damage(self, damage):
         if self._state != "dead":
             self._health -= damage
@@ -54,7 +54,6 @@ class Combat_Dummy(NPC):
                 self._health = 0
             self._last_hit_timer = 0
 
-    
     def step(self, day_time):
         images = self._default_images
         if self._state != "idle":
@@ -103,7 +102,6 @@ class Combat_Dummy(NPC):
 
         return self._position, character_surf, self._shadow, self._hitbox, self._y_shift, self._healthbar
 
-
     @property
     def position(self):
         return self._position
@@ -151,7 +149,6 @@ class Player:
         self._prev_shadow_state = None
         self._shadowlength_modifier = 1
 
-
     def take_damage(self, damage):
         if self._state != "dead":
             self._health -= damage
@@ -160,11 +157,9 @@ class Player:
                 self._health = 0
                 self._facing = 0
 
-    
     def add_outfit(self, outfit):
         if not outfit in self._outfits:
             self._outfits.append(outfit)
-
 
     def toggle_outfit(self):
         if self._state == "idle":
@@ -174,17 +169,14 @@ class Player:
             self._outfit = self._outfits[new_ind]
             self.set_state("idle")
 
-
     def equip_outfit(self, index):
         self._outfit = self._outfits[index]
         self.set_state("idle")
         self._anim_step = 0
 
-
     def equip_weapon(self, key):
         if isinstance(self._inventory[key], Weapon):
             self._equipped_weapon = self._inventory[key]
-
 
     def add_to_inventory(self, item):
         for key, it in self._inventory.items():
@@ -198,19 +190,15 @@ class Player:
             i += 1
         self._inventory[itemname] = item
 
-
     def remove_from_inventory(self, item):
         if item in self._inventory:
             del self._inventory[item]
 
-
     def get_inventory(self):
         return self._inventory
 
-
     def get_outfits(self):
         return self._outfits
-
 
     def set_state(self, state):
         self._shadowlength_modifier = 1
@@ -254,7 +242,6 @@ class Player:
             self._shadowlength_modifier = 0.3
         self._anim_step = 0
 
-
     def get_weapon_hit_rect(self):
         if self._facing == 0:
             attac_rect = pygame.Rect(self._position[0] - 5, self._position[1] - self.equipped_weapon.range - 10, 10, self.equipped_weapon.range)
@@ -265,7 +252,6 @@ class Player:
         elif self._facing == 3:
             attac_rect = pygame.Rect(self._position[0] + 10, self._position[1] + 5, self.equipped_weapon.range, 10)
         return attac_rect
-
 
     def step(self, day_time, action = None, move_array = np.zeros(4), sprint = False):
         attack_rect = None
@@ -394,10 +380,8 @@ class Player:
 
         return self._position, player_surf, [attack_rect, self.equipped_weapon], hitbox, movement, self._shadow
 
-
     def set_pos(self, pos):
         self._position = pos
-
 
     def color_surface(self, surface, red, green, blue, alpha):
         arr = pygame.surfarray.pixels3d(surface)
@@ -408,7 +392,6 @@ class Player:
         alphas = pygame.surfarray.pixels_alpha(surface)
         alphas[alphas != 0] = alpha
 
-    
     @property
     def position(self):
         return self._position

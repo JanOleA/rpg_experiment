@@ -6,6 +6,7 @@ import numpy as np
 
 slm = np.logspace(0.3, -0.8, 20) # shadow length modifiers
 
+
 class Wearable:
     def __init__(self, name, icon):
         self.name = name
@@ -41,7 +42,6 @@ class Projectile:
         self.damage = damage
         self.timer = 0
 
-
     def step(self):
         self.timer += 1
         x, y = self._position
@@ -60,14 +60,13 @@ class Projectile:
 
         return hitbox
 
-
     @property
     def position(self):
         return self._position
 
 
 class Arrow(Projectile):
-    def __init__(self, x, y, direction, speed = 3, damage = 5):
+    def __init__(self, x, y, direction, speed = 5, damage = 5):
         super().__init__(x, y, direction, speed, damage)
         self.image = ["bow", "WEAPON_arrow"]
 

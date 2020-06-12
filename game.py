@@ -10,6 +10,11 @@ from items import Weapon, Outfit, Arrow, Projectile
 
 class Game:
     def __init__(self, AA_text = True, draw_hitboxes = False):
+        """ General setup for the game.
+
+        Keyword arguments:
+        AA_text - 
+        """
         self._running = True
         self._screen = None
         self._width = 1280
@@ -35,36 +40,32 @@ class Game:
         self._draw_hitboxes = draw_hitboxes
 
         self._circle_cache = {}
-
     
     def load_image_folder(self, folder_name, dict):
-        for item in glob.glob(os.path.join(os.getcwd(),
+        """ Load images from all sprite folders with the given folder name
+        into the specified dictionary
+        """
+        folders = glob.glob(os.path.join(os.getcwd(),
                                            "sprites",
                                            "wulax",
                                            "png",
                                            folder_name,
-                                           "*.png")):
-            
-            image = pygame.image.load(item)
-            image.convert_alpha()
-            item_name = item.split("\\")[-1].split(".p")[0]
-            
-            dict[item_name] = image
+                                           "*.png"))
 
-        for item in glob.glob(os.path.join(os.getcwd(),
+        folders += glob.glob(os.path.join(os.getcwd(),
                                            "sprites",
                                            "wulax",
                                            "png",
                                            "64x64",
                                            folder_name,
-                                           "*.png")):
-            
+                                           "*.png"))
+                                           
+        for item in folders:            
             image = pygame.image.load(item)
             image.convert_alpha()
-            item_name = item.split("\\")[-1].split(".p")[0]
+            item_name = item.split("\\")[-1].split(".p")[0] # use the filename as key, but without '.png'
             
             dict[item_name] = image
-
 
     def get_icon(self, name):
         img = pygame.image.load(os.path.join(os.getcwd(),
@@ -133,7 +134,6 @@ class Game:
 
         return platearmor
         
-
     """ Weapon definitions """
     def make_dagger(self):
         dagger_icon = self.get_icon("dagger")
@@ -240,7 +240,6 @@ class Game:
 
         self._loop_func = self.standard_loop
 
-
     def on_event(self, event):
         if event.type == pygame.QUIT:
             self._running = False
@@ -269,7 +268,6 @@ class Game:
                     self._paused = True
                     self._inventory = True
                     self._pausebg = self._screen.copy()
-
 
     def standard_loop(self, action, move_array, key_states):
         """ Normal gameplay loop """
@@ -391,7 +389,6 @@ class Game:
         if self._day_time >= 400:
             self._day_time = 0
 
-
     def loop(self):
         self.attack_rects = {}
         self.hitboxes = {}
@@ -426,7 +423,6 @@ class Game:
 
         self._clock.tick_busy_loop(30)
         self.fps = self._clock.get_fps()
-
 
     def render(self):
         cam_x = min(max(self._cam_x, 0), self._mapwidth - self._width)
@@ -476,7 +472,6 @@ class Game:
                 item_surfs.append(npc_surf)
                 item_positions.append([npc_position[0] - sprite_size//2, npc_position[1] - sprite_size//2])
 
-
             """ get projectile surfs """
             for projectile, surf in self._projectiles:
                 projectile_position = projectile.position - 32
@@ -511,7 +506,6 @@ class Game:
                 pos[1] += yshift
                 pos = pos.astype(int) - campos
                 self._screen.blit(surf, pos)
-
             
             """ Draw night effect """
             night = pygame.surface.Surface((self._width, self._height))
@@ -530,7 +524,6 @@ class Game:
                 night.set_alpha(alpha)
                 self._screen.blit(night, (0, 0))
 
-
             """ Draw healthbars """
             for healthbar in healthbars:
                 bg = healthbar[1]
@@ -540,7 +533,6 @@ class Game:
                 pygame.draw.rect(self._screen, self.RED, bg)
                 if fg.width > 0:
                     pygame.draw.rect(self._screen, self.GREEN, fg)
-
 
             """ Draw UI elements """
             hour = int(self._day_time/400*24) + 1
@@ -571,7 +563,6 @@ class Game:
                 pygame.draw.rect(self._screen, self.DARKERGREEN, player_stamina)
             
             self._screen.blit(time_text, (5, self._height - 25))
-
 
         if self._paused:
             self._hover_item = None
@@ -634,7 +625,6 @@ class Game:
                     except IndexError:
                         pass
 
-
             equipped_weapon = self.player.equipped_weapon
             icon = equipped_weapon.icon
             self._screen.blit(icon, (458, 74))
@@ -648,10 +638,8 @@ class Game:
 
         pygame.display.flip()
 
-
     def cleanup(self):
         pygame.quit()
-
 
     def execute(self):
         if self.init_game() == False:
@@ -663,7 +651,6 @@ class Game:
             self.loop()
             self.render()
         self.cleanup()
-
 
     def color_surface(self, surface, red, green, blue, alpha):
         arr = pygame.surfarray.pixels3d(surface)
