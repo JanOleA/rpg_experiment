@@ -1,9 +1,10 @@
+import time
+
 import numpy as np
 import pygame
 from pygame.locals import *
+
 from items import Weapon, Outfit
-import time
-from copy import deepcopy
 
 slm = np.logspace(0.3, -0.8, 20) # shadow length modifiers
 
@@ -102,6 +103,7 @@ class Combat_Dummy(NPC):
 
         return self._position, character_surf, self._shadow, self._hitbox, self._y_shift, self._healthbar
 
+
     @property
     def position(self):
         return self._position
@@ -149,25 +151,11 @@ class Player:
         self._prev_shadow_state = None
         self._shadowlength_modifier = 1
 
-    def take_damage(self, damage):
-        if self._state != "dead":
-            self._health -= damage
-            if self._health <= 0:
-                self.set_state("dead")
-                self._health = 0
-                self._facing = 0
 
+    """ Inventory and outfit methods"""
     def add_outfit(self, outfit):
         if not outfit in self._outfits:
             self._outfits.append(outfit)
-
-    def toggle_outfit(self):
-        if self._state == "idle":
-            cur_ind = self._outfits.index(self._outfit)
-            new_ind = (cur_ind + 1)%len(self._outfits)
-
-            self._outfit = self._outfits[new_ind]
-            self.set_state("idle")
 
     def equip_outfit(self, index):
         self._outfit = self._outfits[index]
@@ -200,6 +188,8 @@ class Player:
     def get_outfits(self):
         return self._outfits
 
+
+    """ Behavior methods """
     def set_state(self, state):
         self._shadowlength_modifier = 1
         if state == "walk":
@@ -359,7 +349,7 @@ class Player:
             player_surf.blit(layer, (0, 0),
                              (sprite_x, sprite_y, self._sprite_size, self._sprite_size))            
         
-        hitbox = pygame.Rect(self._position[0] - 12, self._position[1] - 5, 24, 32)
+        hitbox = pygame.Rect(self._position[0] - 12, self._position[1] + 1, 24, 28)
 
         shadow_state = int(day_time//5)
 
@@ -383,6 +373,16 @@ class Player:
     def set_pos(self, pos):
         self._position = pos
 
+    def take_damage(self, damage):
+        if self._state != "dead":
+            self._health -= damage
+            if self._health <= 0:
+                self.set_state("dead")
+                self._health = 0
+                self._facing = 0
+
+
+    """ Drawing methods """
     def color_surface(self, surface, red, green, blue, alpha):
         arr = pygame.surfarray.pixels3d(surface)
         arr[:,:,0] = red
@@ -391,6 +391,7 @@ class Player:
 
         alphas = pygame.surfarray.pixels_alpha(surface)
         alphas[alphas != 0] = alpha
+
 
     @property
     def position(self):
