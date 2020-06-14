@@ -1,21 +1,55 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <tileset version="1.2" tiledversion="1.3.5" name="base_out_atlas" tilewidth="32" tileheight="32" tilecount="1024" columns="32">
  <image source="base_out_atlas.png" width="1024" height="1024"/>
+ <terraintypes>
+  <terrain name="Grass" tile="0"/>
+  <terrain name="Dark dirt" tile="0"/>
+  <terrain name="Light dirt" tile="0"/>
+  <terrain name="Still water" tile="0"/>
+ </terraintypes>
+ <tile id="16" terrain="2,2,2,"/>
+ <tile id="17" terrain="2,2,,2"/>
+ <tile id="19" terrain="1,1,1,"/>
+ <tile id="20" terrain="1,1,,1"/>
  <tile id="21" type="Grass"/>
- <tile id="22" type="Grass"/>
- <tile id="23" type="Grass"/>
+ <tile id="22" type="Grass" terrain="0,0,0,"/>
+ <tile id="23" type="Grass" terrain="0,0,,0"/>
+ <tile id="48" terrain="2,,2,2"/>
+ <tile id="49" terrain=",2,2,2"/>
+ <tile id="51" terrain="1,,1,1"/>
+ <tile id="52" terrain=",1,1,1"/>
  <tile id="53" type="Grass"/>
- <tile id="54" type="Grass"/>
- <tile id="55" type="Grass"/>
- <tile id="85" type="Grass"/>
- <tile id="86" type="Grass"/>
- <tile id="87" type="Grass"/>
- <tile id="117" type="Grass"/>
- <tile id="118" type="Grass"/>
- <tile id="119" type="Grass"/>
- <tile id="149" type="Grass"/>
- <tile id="150" type="Grass"/>
- <tile id="151" type="Grass"/>
+ <tile id="54" type="Grass" terrain="0,,0,0"/>
+ <tile id="55" type="Grass" terrain=",0,0,0"/>
+ <tile id="79" terrain=",,,2"/>
+ <tile id="80" terrain=",,2,2"/>
+ <tile id="81" terrain=",,2,"/>
+ <tile id="82" terrain=",,,1"/>
+ <tile id="83" terrain=",,1,1"/>
+ <tile id="84" terrain=",,1,"/>
+ <tile id="85" type="Grass" terrain=",,,0"/>
+ <tile id="86" type="Grass" terrain=",,0,0"/>
+ <tile id="87" type="Grass" terrain=",,0,"/>
+ <tile id="111" terrain=",2,,2"/>
+ <tile id="112" terrain="2,2,2,2"/>
+ <tile id="113" terrain="2,,2,"/>
+ <tile id="114" terrain=",1,,1"/>
+ <tile id="115" terrain="1,1,1,1"/>
+ <tile id="116" terrain="1,,1,"/>
+ <tile id="117" type="Grass" terrain=",0,,0"/>
+ <tile id="118" type="Grass" terrain="0,0,0,0"/>
+ <tile id="119" type="Grass" terrain="0,,0,"/>
+ <tile id="143" terrain=",2,,"/>
+ <tile id="144" terrain="2,2,,"/>
+ <tile id="145" terrain="2,,,"/>
+ <tile id="146" terrain=",1,,"/>
+ <tile id="147" terrain="1,1,,"/>
+ <tile id="148" terrain="1,,,"/>
+ <tile id="149" type="Grass" terrain=",0,,"/>
+ <tile id="150" type="Grass" terrain="0,0,,"/>
+ <tile id="151" type="Grass" terrain="0,,,"/>
+ <tile id="177" terrain="2,2,2,2"/>
+ <tile id="180" terrain="1,1,1,1"/>
  <tile id="181" type="Grass"/>
  <tile id="182" type="Grass"/>
  <tile id="183" type="Grass"/>
@@ -30,27 +64,39 @@
  <tile id="279" type="Grass"/>
  <tile id="291" type="Door"/>
  <tile id="293" type="Door"/>
+ <tile id="298" terrain="3,3,3,"/>
+ <tile id="299" terrain="3,3,,3"/>
  <tile id="309" type="Grass"/>
  <tile id="310" type="Grass"/>
  <tile id="311" type="Grass"/>
  <tile id="323" type="Door"/>
  <tile id="325" type="Door"/>
+ <tile id="330" terrain="3,,3,3"/>
+ <tile id="331" terrain=",3,3,3"/>
  <tile id="341" type="Grass"/>
  <tile id="342" type="Grass"/>
  <tile id="343" type="Grass"/>
  <tile id="349" type="Sign"/>
  <tile id="350" type="Sign"/>
  <tile id="351" type="Sign"/>
+ <tile id="361" terrain=",,,3"/>
+ <tile id="362" terrain=",,3,3"/>
+ <tile id="363" terrain=",,3,"/>
  <tile id="381" type="Sign"/>
  <tile id="382" type="Sign"/>
  <tile id="383" type="Sign"/>
- <tile id="394" type="Water"/>
+ <tile id="393" terrain=",3,,3"/>
+ <tile id="394" type="Water" terrain="3,3,3,3"/>
+ <tile id="395" terrain="3,,3,"/>
  <tile id="408" type="Tree"/>
  <tile id="409" type="Tree"/>
  <tile id="410" type="Tree"/>
  <tile id="411" type="Tree"/>
  <tile id="412" type="Tree"/>
  <tile id="413" type="Tree"/>
+ <tile id="425" terrain=",3,,"/>
+ <tile id="426" terrain="3,3,,"/>
+ <tile id="427" terrain="3,,,"/>
  <tile id="437" type="Wateredge"/>
  <tile id="438" type="Wateredge"/>
  <tile id="439" type="Wateredge"/>

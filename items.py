@@ -90,7 +90,7 @@ class Projectile:
 
 
 class Arrow(Projectile):
-    def __init__(self, x, y, direction, speed=5, damage=5):
+    def __init__(self, x, y, direction, speed=6, damage=5):
         super().__init__(x, y, direction, speed, damage)
         self.image = ["bow", "WEAPON_arrow"]
 

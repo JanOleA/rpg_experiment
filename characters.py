@@ -25,10 +25,10 @@ class NPC:
 
 
 class Combat_Dummy(NPC):
-    def __init__(self, default_images, death_images, x, y):
+    def __init__(self, images, x, y):
         super().__init__()
-        self._default_images = default_images
-        self._death_images = death_images
+        self._default_images = images["combat_dummy"]["BODY_animation"]
+        self._death_images = images["combat_dummy"]["BODY_death"]
         self._health = 300
         self._maxhealth = self._health
         self._anim_step = 0
@@ -86,7 +86,7 @@ class Combat_Dummy(NPC):
         
         shadow_state = int(day_time//5)
 
-        if self._shadow == None or self._state != "idle" or shadow_state != self._prev_shadow_state:
+        if self._shadow == None or (self._state != "idle" and (self._state != "dead" or self._anim_step != 5)) or shadow_state != self._prev_shadow_state:
             if shadow_state < 20:
                 self._shadow = pygame.transform.flip(pygame.transform.scale(character_surf, (self._sprite_size, int(self._sprite_size*slm[shadow_state]))), 0, 1)
             elif shadow_state < 40:
@@ -144,12 +144,13 @@ class Player:
         self._anim_speed = 0.5
         self._health = 100
         self._maxhealth = self._health
-        self._stamina = 1000
+        self._stamina = 200
         self._maxstamina = self._stamina
         self.id = f"{self.__class__.__name__}-{id(self)}"
         self._shadow = None
         self._prev_shadow_state = None
         self._shadowlength_modifier = 1
+        self._time_since_sprinting = 0
 
 
     """ Inventory and outfit methods"""
@@ -280,17 +281,20 @@ class Player:
             self._anim_step = 0
 
         if sprint and self._state == "walk":
-            self._stamina -= 0.5
+            self._stamina -= 0.005
             if self._stamina > 0:
-                self._speed = 4
+                self._speed = 5
                 self._anim_speed = 1
+                self._time_since_sprinting = 0
             else:
                 self._speed = 2
                 self._anim_speed = 0.5
                 self._stamina = 0
         else:
+            self._time_since_sprinting += 1
+            self._time_since_sprinting = min(self._time_since_sprinting, 200)
             if self._stamina < self._maxstamina:
-                self._stamina += 0.4
+                self._stamina += self._time_since_sprinting**2*1e-4
             elif self._stamina > self._maxstamina:
                 self._stamina = self._maxstamina
             self._speed = 2

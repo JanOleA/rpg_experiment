@@ -5,228 +5,16 @@ import time
 
 import pygame
 from pygame.locals import *
-from pytmx import load_pygame
 import numpy as np
-import matplotlib.pyplot as plt
 
 from characters import Player, Combat_Dummy
 from items import Weapon, Outfit, Arrow, Projectile
-
-
-class MessageBox:
-    """ Object for displaying info boxes on the screen """
-    def __init__(self, text, font, window_width, window_height,
-                 duration=10, AA_text=True,
-                 tcolor=(255, 255, 255),
-                 bgcolor=(0, 0, 0, 155)):
-        """ Initialize the object.
-
-        Parameters:
-        text -- Text string to display.
-        font -- Pygame font to use.
-        window_width -- Width of the game window.
-        window_height -- Height of the game window.
-
-        Keyword arguments:
-        duration -- How many seconds to display the message box (default 10)
-        AA_text -- Whether or not to anti-alias the text (default True)
-        tcolor -- Color of the text (default white: (255, 255, 255))
-        bgcolor -- Color and alpha of the background (default (0, 0, 0, 155))
-        """
-
-        self._text = font.render(text, AA_text, tcolor)
-        self._duration = duration
-        self._init_time = time.time()
-        self._bgcolor = bgcolor
-
-        textwidth = self._text.get_width()
-        textheight = self._text.get_height()
-        boxwidth = textwidth + 20
-        boxheight = textheight + 20
-        self._bgrect = pygame.Rect(window_width//2 - boxwidth//2,
-                                   window_height - boxheight - 20,
-                                   boxwidth, boxheight)
-        self._textpos = (self._bgrect.left + 10, self._bgrect.top + 10)
-
-    def __call__(self):
-        return self._text, self._textpos, self._bgrect, self._bgcolor
-
-    @property
-    def init_time(self):
-        return self._init_time
-
-    @property
-    def duration(self):
-        return self._duration
-
-
-class GameMap:
-    """ Class for holding map objects """
-    def __init__(self, filename):
-        tmx_data = load_pygame(os.path.join(os.getcwd(), "map", filename))
-        self._mapwidth_tiles = tmx_data.width
-        self._mapheight_tiles = tmx_data.height
-        self._mapwidth = tmx_data.width*32
-        self._mapheight = tmx_data.height*32
-        self._map_layers = tmx_data.layers
-
-        self._water_matrix = np.zeros((self._mapwidth_tiles, self._mapheight_tiles))
-        self._collision_object_matrix = np.zeros((self._mapwidth_tiles, self._mapheight_tiles))
-        self._bridge_matrix = np.zeros((self._mapwidth_tiles, self._mapheight_tiles))
-
-        self._ground_surf = pygame.Surface((self._mapwidth, self._mapheight))
-        self._c_object_surfs = [] # collision objects on the map
-        self._bridge_surf = pygame.Surface((self._mapwidth, self._mapheight), pygame.SRCALPHA)
-        self._above_surf = pygame.Surface((self._mapwidth, self._mapheight), pygame.SRCALPHA)
-
-        self._collision_hitboxes = []
-
-        for k, layer in enumerate(self._map_layers):
-            if ("Ground" in layer.name or "Water" in layer.name):
-                for i in range(self._mapwidth_tiles):
-                    for j in range(self._mapheight_tiles):
-                        x = i*32
-                        y = j*32
-                        image = tmx_data.get_tile_image(i, j, k)
-                        if image is not None:
-                            self._ground_surf.blit(image, (x, y))
-                            if "Water" in layer.name:
-                                self._water_matrix[i, j] = 1
-            
-            if "C-Objects" in layer.name:
-                for j in range(self._mapheight_tiles):
-                    y_surf = pygame.Surface((self._mapwidth, 32), pygame.SRCALPHA) # make a surf for this y-position
-                    y = j*32
-                    for i in range(self._mapwidth_tiles):
-                        image = tmx_data.get_tile_image(i, j, k)
-                        x = i*32
-                        if image is not None:
-                            y_surf.blit(image, (x, 0))
-                            self._collision_object_matrix[i, j] = 1
-                            hitbox = pygame.Rect(x, y, 32, 32)
-                            self._collision_hitboxes.append([f"{i}{j}cmapobj", hitbox])
-
-                    self._c_object_surfs.append([y_surf, y])
-            
-            if "N-Objects" in layer.name:
-                for i in range(self._mapwidth_tiles):
-                    for j in range(self._mapheight_tiles):
-                        x = i*32
-                        y = j*32
-                        image = tmx_data.get_tile_image(i, j, k)
-                        if image is not None:
-                            self._above_surf.blit(image, (x, y))
-
-            if "Bridges" in layer.name:
-                offset_y = layer.offsety
-                for i in range(self._mapwidth_tiles):
-                    for j in range(self._mapheight_tiles):
-                        x = i*32
-                        y = j*32 + offset_y
-                        image = tmx_data.get_tile_image(i, j, k)
-                        if image is not None:
-                            self._bridge_surf.blit(image, (x, y))
-                            self._bridge_matrix[i, j] = 1
-
-            if "Colliders" in layer.name:
-                offset_y = layer.offsety
-                for j in range(self._mapheight_tiles):
-                    y = j*32 + offset_y
-                    for i in range(self._mapwidth_tiles):
-                        prop = tmx_data.get_tile_properties(i, j, k)
-                        x = i*32
-                        if prop is not None:
-                            collidertype = prop["type"]
-                            hitboxes = []
-                            if collidertype == "Top":
-                                hitboxes.append(pygame.Rect(x, y, 32, 4))
-                            elif collidertype == "Left":
-                                hitboxes.append(pygame.Rect(x, y, 4, 32))
-                            elif collidertype == "Bottom":
-                                hitboxes.append(pygame.Rect(x, y + 28, 32, 4))
-                            elif collidertype == "Right":
-                                hitboxes.append(pygame.Rect(x + 28, y, 4, 32))
-
-                            if collidertype == "TLRM":
-                                """ From top left to right middle """
-                                hitboxes.append(pygame.Rect(x, y, 16, 8))
-                                hitboxes.append(pygame.Rect(x+16, y+8, 16, 8))
-
-                            if collidertype == "LMRB":
-                                """ From left middle to right bottom """
-                                hitboxes.append(pygame.Rect(x, y+12, 8, 8))
-                                hitboxes.append(pygame.Rect(x+8, y+16, 12, 8))
-                                hitboxes.append(pygame.Rect(x+20, y+24, 12, 8))
-
-                            if collidertype == "LMRT":
-                                """ From left middle to right top """
-                                hitboxes.append(pygame.Rect(x, y+8, 12, 8))
-                                hitboxes.append(pygame.Rect(x+12, y, 20, 8))
-
-                            if collidertype == "LBRM":
-                                """ From left bottom to right middle """
-                                hitboxes.append(pygame.Rect(x, y+24, 8, 8))
-                                hitboxes.append(pygame.Rect(x+8, y+20, 12, 8))
-                                hitboxes.append(pygame.Rect(x+20, y+12, 12, 8))
-
-                            if collidertype == "LTRB":
-                                """ From left top to right bottom """
-                                hitboxes.append(pygame.Rect(x, y, 16, 8))
-                                hitboxes.append(pygame.Rect(x+12, y+8, 8, 8))
-                                hitboxes.append(pygame.Rect(x+20, y+16, 12, 12))
-                            
-                            if collidertype == "LB":
-                                """ Left bottom only """
-                                hitboxes.append(pygame.Rect(x, y+24, 8, 8))
-
-                            if collidertype == "LBRT":
-                                """ From left bottom to right top """
-                                hitboxes.append(pygame.Rect(x, y+20, 8, 12))
-                                hitboxes.append(pygame.Rect(x+8, y+12, 12, 8))
-                                hitboxes.append(pygame.Rect(x+16, y, 16, 12))
-
-                            if collidertype == "RB":
-                                """ Right bottom only """
-                                hitboxes.append(pygame.Rect(x+24, y+24, 8, 8))
-
-                            for l, hitbox in enumerate(hitboxes):
-                                self._collision_hitboxes.append([f"{i}{j}cmapobj-{collidertype}-{l}", hitbox])
-                                
-
-
-    @property
-    def ground_surf(self):
-        return self._ground_surf
-
-    @property
-    def collision_obj_surfs(self):
-        return self._c_object_surfs
-
-    @property
-    def bridge_surf(self):
-        return self._bridge_surf
-
-    @property
-    def above_surf(self):
-        return self._above_surf
-
-    @property
-    def mapsize(self):
-        """ Map size in pixels as a tuple (x, y) """
-        return (self._mapwidth, self._mapheight)
-
-    @property
-    def mapsize_tiles(self):
-        """ Map size in number of 32x32 tiles as a tuple (x, y) """
-        return (self._mapwidth_tiles, self._mapheight_tiles)
-
-    @property
-    def collision_hitboxes(self):
-        return self._collision_hitboxes
+from gameobjects import GameMap, MessageBox, Trigger
+from triggerscripts import triggerscripts
 
 
 class Game:
-    def __init__(self, AA_text=True, draw_hitboxes=False):
+    def __init__(self, AA_text=True, draw_hitboxes=False, draw_triggers=False):
         """ General setup for the game.
 
         Keyword arguments:
@@ -253,13 +41,15 @@ class Game:
 
         self.AA_text = AA_text
         self._draw_hitboxes = draw_hitboxes
+        self._draw_triggers = draw_triggers
 
         self._circle_cache = {}
-    
+
     def load_image_folder(self, folder_name, dict):
         """ Load images from all sprite folders with the given folder name
         into the specified dictionary
         """
+        print(f"Loading images from: wulax.{folder_name}")
         folders = glob.glob(os.path.join(os.getcwd(),
                                            "sprites",
                                            "wulax",
@@ -348,7 +138,7 @@ class Game:
                           self._bow_images["HANDS_plate_armor_gloves"]]
 
         return platearmor
-        
+
     """ Weapon definitions """
     def make_dagger(self):
         dagger_icon = self.get_icon("dagger")
@@ -382,7 +172,8 @@ class Game:
         self.font_big_bold = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 25)
         self.loadingtext = self.font_big.render("Loading...", self.AA_text, self.WHITE)
 
-        self._screen.blit(self.loadingtext, (5,5))
+        self._screen.blit(self.loadingtext, (self._width/2 - self.loadingtext.get_width()/2,
+                                             self._height/2 - self.loadingtext.get_height()/2))
         pygame.display.flip()
         print("Loading...")
 
@@ -447,7 +238,7 @@ class Game:
         self.player.add_to_inventory(spear)
 
         self.npcs = []
-        self.npcs.append(Combat_Dummy(self._combat_dummy_images["BODY_animation"], self._combat_dummy_images["BODY_death"], 39*32, 3*32))
+        self.npcs.append(Combat_Dummy(self._images, 10*32, 3*32))
         self._projectiles = []
 
         self._paused = False
@@ -474,6 +265,7 @@ class Game:
         self._loop_func = self.standard_loop
         self._unpaused_render = self.standard_render
         self._paused_render = self.inventory_render
+        print("Loading completed...")
 
     def on_event(self, event):
         if event.type == pygame.QUIT:
@@ -548,7 +340,7 @@ class Game:
             self.hitboxes[npc] = npc_data[3]
             self._npc_datas.append(npc_data)
 
-        for _, hitbox in self.map.collision_hitboxes:
+        for _, hitbox in self.map.collision_hitboxes + self.map.water_hitboxes:
             self.hitboxes[_] = hitbox
 
         del_projectiles = []
@@ -576,7 +368,7 @@ class Game:
                     except AttributeError:
                         """ Target can't take damage """
                         if isinstance(attack_weapon, list):
-                            if isinstance(attack_weapon[0], Projectile):
+                            if isinstance(attack_weapon[0], Projectile) and not "wmapobj" in target:
                                 del_projectiles.append(attack_weapon)
 
         for projectile in del_projectiles:
@@ -588,6 +380,38 @@ class Game:
         movement_x = self._player_data[4][0]
         movement_y = self._player_data[4][1]
 
+        """ Checking player triggers """
+        trigger = playerhitbox.collidedict(self.map.triggers, 1)
+        if trigger is not None:
+            trigger_name = trigger[0]()
+            if trigger_name is not None:
+                if trigger_name in triggerscripts:
+                    add_mboxes, add_npcs, newmap, movement_req = triggerscripts[trigger_name]()
+                    can_trigger = False
+                    if movement_req is not None:
+                        if movement_req == 0:
+                            if movement_y < 0:
+                                can_trigger = True
+                        if movement_req == 1:
+                            if movement_x < 0:
+                                can_trigger = True
+                        if movement_req == 2:
+                            if movement_y > 0:
+                                can_trigger = True
+                        if movement_req == 3:
+                            if movement_x > 0:
+                                can_trigger = True
+                    else:
+                        can_trigger = True
+
+                    if can_trigger:
+                        for mbox in add_mboxes:
+                            mbox.reset_init_time()
+                        self._messageboxes += add_mboxes
+                        self.npcs += add_npcs
+                    else:
+                        trigger[0].untrigger()
+                    
         """ Collision testing the player """
         hitboxes_no_player = self.hitboxes.copy()
         del hitboxes_no_player[self.player]
@@ -628,7 +452,7 @@ class Game:
         while candidate_pos[1] - self._cam_y <= 200:
             self._cam_y -= abs(movement_y)
 
-        self._day_time += 0.1
+        self._day_time += 0.01
         if self._day_time >= 400:
             self._day_time = 0
             sunrise_msgbox = MessageBox("The sun just came up",
@@ -647,7 +471,6 @@ class Game:
             self._messageboxes.append(sunset_msgbox)
             self._has_displayed_sunset_msgbox = True
 
-            
     def loop(self):
         self.attack_rects = {}
         self.hitboxes = {}
@@ -687,7 +510,6 @@ class Game:
     """ Game render methods """
     def standard_render(self, cam_x, cam_y, campos):
         self._screen.blit(self.map.ground_surf, (0 - cam_x, 0 - cam_y))
-        self._screen.blit(self.map.bridge_surf, (0 - cam_x, 0 - cam_y))
 
         shadow_state = int(self._day_time//5)
 
@@ -800,6 +622,15 @@ class Game:
             for a, hitbox in self.hitboxes.items():
                 draw_hitbox = hitbox.move(-cam_x, -cam_y)
                 pygame.draw.rect(self._screen, self.WHITE, draw_hitbox)
+
+            for a, hitbox in self.map.water_hitboxes:
+                draw_hitbox = hitbox.move(-cam_x, -cam_y)
+                pygame.draw.rect(self._screen, self.BLUE, draw_hitbox)
+
+        if self._draw_triggers:
+            for a, trigger in self.map.triggers.items():
+                draw_trigger = trigger.move(-cam_x, -cam_y)
+                pygame.draw.rect(self._screen, self.GREY, draw_trigger)
 
         """ Draw UI elements """
         hour = int(self._day_time/400*24) + 1
@@ -957,10 +788,10 @@ class Game:
 
         alphas = pygame.surfarray.pixels_alpha(surface)
         alphas[alphas != 0] = alpha
-            
+
 
 if __name__ == "__main__":
-    game = Game()
+    game = Game(draw_hitboxes=False, draw_triggers=False)
     game.execute()
 
 
