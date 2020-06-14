@@ -7,6 +7,8 @@ from pygame.locals import *
 from pytmx import load_pygame
 import numpy as np
 
+from characters import Combat_Dummy
+
 
 class MessageBox:
     """ Object for displaying info boxes on the screen """
@@ -68,6 +70,7 @@ class GameMap:
         self._mapheight = tmx_data.height*32
         self._map_layers = tmx_data.layers
         self._outdoors = tmx_data.outdoors
+        print(self._outdoors)
 
         self._water_matrix = np.zeros((self._mapwidth_tiles, self._mapheight_tiles))
         self._collision_object_matrix = np.zeros((self._mapwidth_tiles, self._mapheight_tiles))
@@ -81,6 +84,10 @@ class GameMap:
 
         self._collision_hitboxes = []
         self._water_hitboxes = []
+
+        self._stored_npcs = []
+        self._stored_player_position = (0,0)
+        self._stored_camera_positon = (0,0)
 
         """ Loop through layers and add appropriate items to the right arrays and lists. """
         for k, layer in enumerate(self._map_layers):
@@ -247,6 +254,19 @@ class GameMap:
                     self._water_hitboxes.append([f"{i}-{j}wmapobj-comb", hitbox])
 
 
+    def store_data(self, npcs, player_position, camera_position):
+        """ Stores the current NPCs in the map, player position and camera
+        position. This can be retrieved with 'retrieve_data()' when loading the
+        map again.
+        """
+        self._stored_npcs = npcs
+        self._stored_player_position = player_position
+        self._stored_camera_positon = camera_position
+
+    def retrieve_data(self):
+        return self._stored_npcs, np.array(self._stored_player_position), self._stored_camera_positon
+
+
     def recursive_expand_square(self, x, y, cur_width, cur_height, matrix):
         """ Expand a square from one point in the matrix into its neighboring
         points as long all values in the expansion direction is 1.
@@ -279,6 +299,26 @@ class GameMap:
         else:
             return (cur_width, cur_height)
 
+
+    @property
+    def width(self):
+        return self._mapwidth
+
+    @property
+    def height(self):
+        return self._mapheight
+
+    @property
+    def stored_player_position(self):
+        return self._stored_player_position
+
+    @property
+    def stored_camera_positon(self):
+        return self._stored_camera_positon
+    
+    @property
+    def stored_npcs(self):
+        return self._stored_npcs
 
     @property
     def ground_surf(self):

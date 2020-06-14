@@ -2,6 +2,7 @@ import sys
 import os
 import glob
 import time
+from copy import copy
 
 import pygame
 from pygame.locals import *
@@ -42,8 +43,6 @@ class Game:
         self.AA_text = AA_text
         self._draw_hitboxes = draw_hitboxes
         self._draw_triggers = draw_triggers
-
-        self._circle_cache = {}
 
     def load_image_folder(self, folder_name, dict):
         """ Load images from all sprite folders with the given folder name
@@ -177,16 +176,14 @@ class Game:
         pygame.display.flip()
         print("Loading...")
 
-        self.map1 = GameMap("map1.tmx")
-        self._mapwidth, self._mapheight = self.map1.mapsize
-
-        self.map = self.map1
+        self.map = None
+        self._current_map_name = None
+        self._maps = {}
 
         pygame.mixer.init()
         pygame.mixer.music.load(os.path.join(os.getcwd(), "music", "pugnateii.mp3"))
 
         self._clock = pygame.time.Clock()
-        self._grass_bg = pygame.image.load(os.path.join(os.getcwd(), "graphics", "grass_bg.png"))
 
         self._inventory_menu = pygame.image.load(os.path.join(os.getcwd(), "graphics", "inventorymenu.png"))
         self._inventory_menu.convert_alpha()
@@ -231,6 +228,12 @@ class Game:
                              self._hurt_images,
                              robe)
 
+        init_script = triggerscripts["game_init"]
+        init_values = init_script()
+
+        map_name, new_player_position, new_cam_position = init_values[2]
+        self.load_new_map(map_name, new_player_position, new_cam_position)
+
         self.player.add_to_inventory(hands)
         self.player.equip_weapon("Hands")
 
@@ -239,6 +242,8 @@ class Game:
 
         self.npcs = []
         self.npcs.append(Combat_Dummy(self._images, 10*32, 3*32))
+        self.npcs.append(Combat_Dummy(self._images, 45*32, 75*32))
+        self.npcs.append(Combat_Dummy(self._images, 50*32, 75*32))
         self._projectiles = []
 
         self._paused = False
@@ -299,6 +304,63 @@ class Game:
                     self._pausebg = self._screen.copy()
                     self._paused_render = self.inventory_render
 
+    def load_new_map(self, new_map, new_player_position = None, new_cam_position = None):
+        """ Stores the data from the currently loaded map into its GameMap object
+        and loads the new map.
+        
+        Arguments:
+        new_map -- Filename for the map to load. If it already exists in the self._maps
+                   dictionary that object will be reused. Otherwise will be loaded from file.
+
+        Keyword arguments:
+        new_player_position -- (x, y) position of where the player starts in
+                               the new map
+        new_cam_position -- (x, y) position of where the camera starts in the
+                            new map
+
+        if the position arguments are None, the values will be loaded from the
+        values stored in the new_map GameMap object.
+        """
+        self._unpaused_render = self.loading_render
+        self._paused_render = self.loading_render
+
+        if new_player_position is None:
+            new_player_position = self._maps[new_map].stored_player_position
+        if new_cam_position is None:
+            new_cam_position = self._maps[new_map].stored_camera_position
+
+        if self._current_map_name in self._maps:
+            origmap = self._maps[self._current_map_name]
+            origmap.store_data(self.npcs.copy(), self.player.position.copy(), (self._cam_x, self._cam_y))
+
+        if not new_map in self._maps:
+            new_map_object = GameMap(new_map)
+            self._maps[new_map] = new_map_object
+        else:
+            new_map_object = self._maps[new_map]
+
+        self._current_map_name = new_map
+        self.map = copy(new_map_object)
+
+        npcs, player_position, camera_position = self.map.retrieve_data()
+        if new_player_position is None:
+            new_player_position = player_position
+        else:
+            new_player_position = np.array(new_player_position)
+        if camera_position is None:
+            new_cam_position = camera_position
+
+        print(new_cam_position)
+
+        self.npcs = npcs
+        self.player.set_pos(new_player_position)
+        self._cam_x, self._cam_y = new_cam_position
+        self._mapwidth = self.map.width
+        self._mapheight = self.map.height
+
+        self._unpaused_render = self.standard_render
+        self._paused_render = self.inventory_render
+
 
     """ Game loop methods """
     def standard_loop(self, action, move_array, key_states):
@@ -332,7 +394,7 @@ class Game:
                 self.attack_rects[self.player] = self._player_data[2]
 
         self.hitboxes[self.player] = self._player_data[3]
-
+        
         """ NPC steps """
         self._npc_datas = []
         for npc in self.npcs:
@@ -409,6 +471,9 @@ class Game:
                             mbox.reset_init_time()
                         self._messageboxes += add_mboxes
                         self.npcs += add_npcs
+                        if newmap is not None:
+                            self.load_new_map(newmap[0], newmap[1], newmap[2])
+                            return
                     else:
                         trigger[0].untrigger()
                     
@@ -441,16 +506,24 @@ class Game:
         candidate_pos[1] += movement_y
 
         self.player.set_pos(candidate_pos)
-
+        
         """ Move camera if player is moving towards an edge """
         while candidate_pos[0] - self._cam_x >= self._width - 200:
+            if movement_x == 0:
+                break
             self._cam_x += abs(movement_x)
         while candidate_pos[1] - self._cam_y >= self._height - 200:
+            if movement_y== 0:
+                break
             self._cam_y += abs(movement_y)
         while candidate_pos[0] - self._cam_x <= 200:
+            if movement_x == 0:
+                break
             self._cam_x -= abs(movement_x)
         while candidate_pos[1] - self._cam_y <= 200:
             self._cam_y -= abs(movement_y)
+            if movement_y== 0:
+                break
 
         self._day_time += 0.01
         if self._day_time >= 400:
@@ -509,6 +582,8 @@ class Game:
 
     """ Game render methods """
     def standard_render(self, cam_x, cam_y, campos):
+        black_bg = pygame.Rect(0, 0, self._width, self._height)
+        pygame.draw.rect(self._screen, self.BLACK, black_bg)
         self._screen.blit(self.map.ground_surf, (0 - cam_x, 0 - cam_y))
 
         shadow_state = int(self._day_time//5)
@@ -576,10 +651,11 @@ class Game:
         yshifts = yshifts[inds]
 
         """ Draw shadows """
-        if self._day_time <= 200:
-            for shadow, pos in shadows.items():
-                pos = np.array(pos) - campos
-                self._screen.blit(shadow, pos)
+        if self.map.outdoors:
+            if self._day_time <= 200:
+                for shadow, pos in shadows.items():
+                    pos = np.array(pos) - campos
+                    self._screen.blit(shadow, pos)
 
         """ Draw characters and items """
         for surf, pos, yshift in zip(item_surfs, item_positions, yshifts):
@@ -591,21 +667,22 @@ class Game:
         self._screen.blit(self.map.above_surf, (0 - cam_x, 0 - cam_y))
 
         """ Draw night effect """
-        night = pygame.surface.Surface((self._width, self._height))
-        night.fill(self.BLACK)
-        alpha = None
-        if self._day_time > 175 and self._day_time < 250:
-            alpha = (255 - abs(250 - self._day_time)*3)/2  
-        elif self._day_time >= 250 and self._day_time < 350:
-            alpha = 255/2
-        elif self._day_time >= 350:
-            alpha = (255 - abs(350 - self._day_time)*3)/2
-        elif self._day_time <= 25:
-            alpha = (255 - abs(-self._day_time - 50)*3)/2
+        if self.map.outdoors:
+            night = pygame.surface.Surface((self._width, self._height))
+            night.fill(self.BLACK)
+            alpha = None
+            if self._day_time > 175 and self._day_time < 250:
+                alpha = (255 - abs(250 - self._day_time)*3)/2  
+            elif self._day_time >= 250 and self._day_time < 350:
+                alpha = 255/2
+            elif self._day_time >= 350:
+                alpha = (255 - abs(350 - self._day_time)*3)/2
+            elif self._day_time <= 25:
+                alpha = (255 - abs(-self._day_time - 50)*3)/2
 
-        if alpha is not None:
-            night.set_alpha(alpha)
-            self._screen.blit(night, (0, 0))
+            if alpha is not None:
+                night.set_alpha(alpha)
+                self._screen.blit(night, (0, 0))
 
         """ Draw healthbars """
         for healthbar in healthbars:
@@ -661,6 +738,12 @@ class Game:
             pygame.draw.rect(self._screen, self.DARKERGREEN, player_stamina)
         
         self._screen.blit(time_text, (5, self._height - 25))
+
+    def loading_render(self, cam_x, cam_y, campos):
+        black_bg = pygame.Rect(0, 0, self._width, self._height)
+        pygame.draw.rect(self._screen, self.BLACK, black_bg)
+        self._screen.blit(self.loadingtext, (self._width/2 - self.loadingtext.get_width()/2,
+                                             self._height/2 - self.loadingtext.get_height()/2))
 
     def inventory_render(self, cam_x, cam_y, campos):
         self._hover_item = None
@@ -732,33 +815,39 @@ class Game:
         self._screen.blit(icon, (522, 74))
 
     def render(self):
-        cam_x = min(max(self._cam_x, 0), self._mapwidth - self._width)
-        cam_y = min(max(self._cam_y, 0), self._mapheight - self._height)
+        if self.map.outdoors:
+            cam_x = min(max(self._cam_x, 0), self._mapwidth - self._width)
+            cam_y = min(max(self._cam_y, 0), self._mapheight - self._height)
+        else:
+            cam_x = self._cam_x
+            cam_y = self._cam_y
+
         campos = np.array([cam_x, cam_y])
         if not self._paused:
             self._unpaused_render(cam_x, cam_y, campos)
         if self._paused:
             self._paused_render(cam_x, cam_y, campos)
 
-        time_now = time.time()
-        del_messageboxes = []
-        tsurf = pygame.Surface((self._width, self._height), pygame.SRCALPHA)
-        move_up = 0
-        for i, box in enumerate(self._messageboxes):
-            text, textpos, bgrect, bgcolor = box()
-            bgrect = bgrect.move(0, -move_up)
-            textpos = (textpos[0], textpos[1] - move_up)
-            pygame.draw.rect(self._screen, bgcolor, bgrect)
-            tsurf.blit(text, textpos)
-            move_up += bgrect.height + 10
-            if (time_now - box.init_time) > box.duration:
-                del_messageboxes.append(box)
+        if self._unpaused_render != self.loading_render:
+            time_now = time.time()
+            del_messageboxes = []
+            tsurf = pygame.Surface((self._width, self._height), pygame.SRCALPHA)
+            move_up = 0
+            for i, box in enumerate(self._messageboxes):
+                text, textpos, bgrect, bgcolor = box()
+                bgrect = bgrect.move(0, -move_up)
+                textpos = (textpos[0], textpos[1] - move_up)
+                pygame.draw.rect(self._screen, bgcolor, bgrect)
+                tsurf.blit(text, textpos)
+                move_up += bgrect.height + 10
+                if (time_now - box.init_time) > box.duration:
+                    del_messageboxes.append(box)
 
-        if len(self._messageboxes) > 0:
-            self._screen.blit(tsurf, (0,0))
+            if len(self._messageboxes) > 0:
+                self._screen.blit(tsurf, (0,0))
 
-            for box in del_messageboxes:
-                self._messageboxes.remove(box)
+                for box in del_messageboxes:
+                    self._messageboxes.remove(box)
                 
         fps_text = self.font_normal.render(f"FPS: {self.fps:2.1f}", self.AA_text, self.WHITE)
         self._screen.blit(fps_text, (self._width - 80, 5))
