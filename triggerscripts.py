@@ -77,7 +77,7 @@ villa2 = new_script("villa2", movement_req = 0)
 villa2.add_messagebox("The door won't open. It's locked.", font_normal)
 
 entervillagehouse1 = new_script("entervillagehouse1", movement_req = 0)
-entervillagehouse1.set_map('village_house_1.tmx', (320, 580), (-320, -220))
+entervillagehouse1.set_map('village_house_1.tmx', (320, 580), (-320, 180))
 
 exitvillagehouse1 = new_script("exitvillagehouse1", movement_req = 2)
 exitvillagehouse1.set_map('map1.tmx', (1550, 2416), (1080, 1880))

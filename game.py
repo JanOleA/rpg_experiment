@@ -321,8 +321,12 @@ class Game:
         if the position arguments are None, the values will be loaded from the
         values stored in the new_map GameMap object.
         """
+        load_start = time.time()
         self._unpaused_render = self.loading_render
         self._paused_render = self.loading_render
+
+        if self.map != None:
+            self.render()
 
         if new_player_position is None:
             new_player_position = self._maps[new_map].stored_player_position
@@ -358,6 +362,10 @@ class Game:
         self._mapwidth = self.map.width
         self._mapheight = self.map.height
 
+        load_end = time.time()
+
+        time.sleep(max(0.1 - (load_end - load_start),0)) # keep the loading screen for at least 0.1 seconds
+                        # because an instant skip looks unnatural
         self._unpaused_render = self.standard_render
         self._paused_render = self.inventory_render
 

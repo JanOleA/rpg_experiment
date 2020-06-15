@@ -70,7 +70,6 @@ class GameMap:
         self._mapheight = tmx_data.height*32
         self._map_layers = tmx_data.layers
         self._outdoors = tmx_data.outdoors
-        print(self._outdoors)
 
         self._water_matrix = np.zeros((self._mapwidth_tiles, self._mapheight_tiles))
         self._collision_object_matrix = np.zeros((self._mapwidth_tiles, self._mapheight_tiles))
@@ -205,7 +204,10 @@ class GameMap:
         
             if "Triggers" in layer.name:
                 for item in layer:
-                    new_trigger = Trigger(item.name)
+                    delay = 20
+                    if "delay" in item.properties:
+                        delay = item.properties["delay"]
+                    new_trigger = Trigger(item.name, delay)
                     self._triggers[new_trigger] = pygame.Rect(item.x, item.y, item.width, item.height)
 
         self._ground_surf.blit(self._bridge_surf, (0,0))

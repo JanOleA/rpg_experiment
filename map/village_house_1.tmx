@@ -152,6 +152,10 @@
 </data>
  </layer>
  <objectgroup id="7" name="Triggers">
-  <object id="1" name="exitvillagehouse1" gid="1281" x="32" y="640" width="576" height="32"/>
+  <object id="1" name="exitvillagehouse1" gid="1281" x="32" y="640" width="576" height="32">
+   <properties>
+    <property name="delay" type="int" value="2"/>
+   </properties>
+  </object>
  </objectgroup>
 </map>
