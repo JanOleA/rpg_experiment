@@ -231,6 +231,7 @@ class Game:
         init_script = triggerscripts["game_init"]
         init_values = init_script()
 
+        self._projectiles = []
         map_name, new_player_position, new_cam_position = init_values[2]
         self.load_new_map(map_name, new_player_position, new_cam_position)
 
@@ -244,7 +245,6 @@ class Game:
         self.npcs.append(Combat_Dummy(self._images, 10*32, 3*32))
         self.npcs.append(Combat_Dummy(self._images, 45*32, 75*32))
         self.npcs.append(Combat_Dummy(self._images, 50*32, 75*32))
-        self._projectiles = []
 
         self._paused = False
         self._inventory = False
@@ -325,6 +325,9 @@ class Game:
         self._unpaused_render = self.loading_render
         self._paused_render = self.loading_render
 
+        while len(self._projectiles) > 0:
+            self._projectiles.pop()
+
         if self.map != None:
             self.render()
 
@@ -364,8 +367,8 @@ class Game:
 
         load_end = time.time()
 
-        time.sleep(max(0.1 - (load_end - load_start),0)) # keep the loading screen for at least 0.1 seconds
-                        # because an instant skip looks unnatural
+        time.sleep(max(0.3 - (load_end - load_start),0)) # keep the loading screen for at least 0.3 seconds
+                                                         # because an instant skip looks unnatural
         self._unpaused_render = self.standard_render
         self._paused_render = self.inventory_render
 
@@ -470,6 +473,7 @@ class Game:
                                 can_trigger = True
                         if movement_req == 3:
                             if movement_x > 0:
+                                print(can_trigger)
                                 can_trigger = True
                     else:
                         can_trigger = True
@@ -516,19 +520,19 @@ class Game:
         self.player.set_pos(candidate_pos)
         
         """ Move camera if player is moving towards an edge """
-        while candidate_pos[0] - self._cam_x >= self._width - 200:
+        while candidate_pos[0] - self._cam_x >= self._width - 400:
             if movement_x == 0:
                 break
             self._cam_x += abs(movement_x)
-        while candidate_pos[1] - self._cam_y >= self._height - 200:
+        while candidate_pos[1] - self._cam_y >= self._height - 300:
             if movement_y== 0:
                 break
             self._cam_y += abs(movement_y)
-        while candidate_pos[0] - self._cam_x <= 200:
+        while candidate_pos[0] - self._cam_x <= 400:
             if movement_x == 0:
                 break
             self._cam_x -= abs(movement_x)
-        while candidate_pos[1] - self._cam_y <= 200:
+        while candidate_pos[1] - self._cam_y <= 300:
             self._cam_y -= abs(movement_y)
             if movement_y== 0:
                 break

@@ -68,10 +68,19 @@ def new_script(name, movement_req = None):
     return script
 
 cave1_script = new_script("cave1", movement_req = 0)
-cave1_script.add_messagebox("You don't feel like going in there right now.", font_normal)
+cave1_script.add_messagebox("Rocks are blocking the cave entrance.\nYou won't be able to go back that way.", font_normal)
 
-villa1 = new_script("villa1", movement_req = 0)
-villa1.add_messagebox("The door won't open. It's locked.", font_normal)
+villa1_1 = new_script("villa1-1", movement_req = 0)
+villa1_1.set_map("villa1.tmx", (1024, 1536), (384, 1136))
+
+villa1_2 = new_script("villa1-2", movement_req = 3)
+villa1_2.set_map("villa1.tmx", (32, 832), (-608, 432))
+
+exitvilla1_1 = new_script("exitvilla1-1", movement_req = 2)
+exitvilla1_1.set_map("map1.tmx", (2432, 695), (1796, 295))
+
+exitvilla1_2 = new_script("exitvilla1-2", movement_req = 1)
+exitvilla1_2.set_map("map1.tmx", (2196, 500), (1556, 100))
 
 villa2 = new_script("villa2", movement_req = 0)
 villa2.add_messagebox("The door won't open. It's locked.", font_normal)

@@ -6,7 +6,7 @@ from pygame.locals import *
 
 from items import Weapon, Outfit
 
-slm = np.logspace(0.3, -0.8, 20) # shadow length modifiers
+slm = np.logspace(0.3, -0.8, 20)*0.6 # shadow length modifiers
 
 
 class NPC:
