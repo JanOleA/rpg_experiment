@@ -1,5 +1,6 @@
 ### Required extra packages:
 - pygame
+- pytmx
 - numpy
 
 ### Art by:
