@@ -65,8 +65,7 @@ class Game:
                                            "*.png"))
                                            
         for item in folders:            
-            image = pygame.image.load(item)
-            image.convert_alpha()
+            image = pygame.image.load(item).convert_alpha()
             item_name = item.split("\\")[-1].split(".p")[0] # use the filename as key, but without '.png'
             item_name = item_name.split("/")[-1]
             dict[item_name] = image
