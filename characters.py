@@ -4,7 +4,7 @@ import numpy as np
 import pygame
 from pygame.locals import *
 
-from items import Weapon, Outfit
+from items import Weapon, Outfit, Ammo, Quiver
 
 slm = np.logspace(0.3, -0.8, 20)*0.6 # shadow length modifiers
 
@@ -24,9 +24,9 @@ class NPC:
         alphas[alphas != 0] = alpha
 
 
-class Combat_Dummy(NPC):
+class Combat_Dummy:
     def __init__(self, images, x, y):
-        super().__init__()
+        self.id = f"{self.__class__.__name__}-{id(self)}"
         self._default_images = images["combat_dummy"]["BODY_animation"]
         self._death_images = images["combat_dummy"]["BODY_death"]
         self._health = 300
@@ -103,6 +103,15 @@ class Combat_Dummy(NPC):
 
         return self._position, character_surf, self._shadow, self._hitbox, self._y_shift, self._healthbar
 
+    def color_surface(self, surface, red, green, blue, alpha):
+        arr = pygame.surfarray.pixels3d(surface)
+        arr[:,:,0] = red
+        arr[:,:,1] = green
+        arr[:,:,2] = blue
+
+        alphas = pygame.surfarray.pixels_alpha(surface)
+        alphas[alphas != 0] = alpha
+
 
     @property
     def position(self):
@@ -123,21 +132,26 @@ class Player:
         self.bow = [bow_images["BODY_male"], bow_images["HEAD_hair_blonde"]]
         self.hurt = [hurt_images["BODY_male"], hurt_images["HEAD_hair_blonde"]]
 
-        self.behind = []
+        self.behind = None
+        self._behind_anim = []
 
         self._outfit = starting_outfit
-
         self._outfits = [starting_outfit]
+
         self._equipped_weapon = None
+        self._equipped_ammo = None
+
         self._inventory = {}
 
         self._sprite_size = 64
         self._anim_step = 0
         self._state = "idle"
+
         self._body = [self.walkcycle[0]]
         self._hair = [self.walkcycle[1]]
         self._outfit_anim = starting_outfit.walkcycle
         self._weapon_anim = []
+
         self._facing = 3 # 0: up, 1: left, 2: down, 3: right
         self._position = np.array([x, y])
         self._speed = 2
@@ -146,11 +160,12 @@ class Player:
         self._maxhealth = self._health
         self._stamina = 200
         self._maxstamina = self._stamina
-        self.id = f"{self.__class__.__name__}-{id(self)}"
         self._shadow = None
         self._prev_shadow_state = None
         self._shadowlength_modifier = 1
         self._time_since_sprinting = 0
+
+        self.id = f"{self.__class__.__name__}-{id(self)}"
 
 
     """ Inventory and outfit methods"""
@@ -167,8 +182,21 @@ class Player:
         if isinstance(self._inventory[key], Weapon):
             self._equipped_weapon = self._inventory[key]
 
+    def equip_ammo(self, key):
+        if isinstance(self._inventory[key], Ammo):
+            self._equipped_ammo = self._inventory[key]
+
+    def unequip_ammo(self):
+        self._equipped_ammo = None
+
     def add_to_inventory(self, item):
+        if isinstance(item, Outfit):
+            self.add_outfit(item)
+            return
         for key, it in self._inventory.items():
+            if type(it) == type(item) and isinstance(item, Ammo):
+                it.increase_amount(item.amount)
+                return
             if item == it:
                 return
         itemname = item.name
@@ -182,6 +210,11 @@ class Player:
     def remove_from_inventory(self, item):
         if item in self._inventory:
             del self._inventory[item]
+        else:
+            for name, inv_item in self._inventory.items():
+                if item == inv_item:
+                    del self._inventory[name]
+                    return
 
     def get_inventory(self):
         return self._inventory
@@ -189,6 +222,24 @@ class Player:
     def get_outfits(self):
         return self._outfits
 
+    def add_extra_item(self, item):
+        self.behind = item
+        if self._state == "walk" or self._state == "idle":
+            self._behind_anim = item.walkcycle
+        elif self._state == "slash":
+            self._behind_anim = self.behind.slash
+        elif self._state == "thrust":
+            self._behind_anim = self.behind.thrust
+        elif self._state == "idle":
+            self._behind_anim = self.behind.walkcycle
+        elif self._state == "bow":
+            self._behind_anim = self.behind.bow
+        elif self._state == "dead":
+            self._behind_anim = self.behind.hurt
+
+    def remove_extra_item(self):
+        self.behind = None
+        self._behind_anim = []
 
     """ Behavior methods """
     def set_state(self, state):
@@ -199,30 +250,40 @@ class Player:
             self._hair = [self.walkcycle[1]]
             self._outfit_anim = self._outfit.walkcycle
             self._weapon_anim = []
+            if self.behind is not None:
+                self._behind_anim = self.behind.walkcycle
         elif state == "slash":
             self._state = "slash"
             self._body = [self.slash[0]]
             self._hair = [self.slash[1]]
             self._outfit_anim = self._outfit.slash
             self._weapon_anim = self._equipped_weapon.slash
+            if self.behind is not None:
+                self._behind_anim = self.behind.slash
         elif state == "thrust":
             self._state = "thrust"
             self._body = [self.thrust[0]]
             self._hair = [self.thrust[1]]
             self._outfit_anim = self._outfit.thrust
             self._weapon_anim = self._equipped_weapon.thrust
+            if self.behind is not None:
+                self._behind_anim = self.behind.thrust
         elif state == "idle":
             self._state = "idle"
             self._body = [self.walkcycle[0]]
             self._hair = [self.walkcycle[1]]
             self._outfit_anim = self._outfit.walkcycle
             self._weapon_anim = []
+            if self.behind is not None:
+                self._behind_anim = self.behind.walkcycle
         elif state == "bow":
             self._state = "bow"
             self._body = [self.bow[0]]
             self._hair = [self.bow[1]]
             self._outfit_anim = self._outfit.bow
             self._weapon_anim = self._equipped_weapon.bow
+            if self.behind is not None:
+                self._behind_anim = self.behind.bow
         elif state == "dead":
             self._state = "dead"
             self._body = [self.hurt[0]]
@@ -231,6 +292,8 @@ class Player:
             self._weapon_anim = []
             self._facing = 0
             self._shadowlength_modifier = 0.3
+            if self.behind is not None:
+                self._behind_anim = self.behind.hurt
         self._anim_step = 0
 
     def get_weapon_hit_rect(self):
@@ -245,6 +308,20 @@ class Player:
         return attac_rect
 
     def step(self, day_time, action = None, move_array = np.zeros(4), sprint = False):
+        if self.equipped_ammo is not None:
+            if self.equipped_ammo.amount <= 0:
+                equipped_ammo = self._equipped_ammo
+                self.unequip_ammo()
+                self.remove_from_inventory(equipped_ammo)
+                remove_quiver = True
+                for key, item in self._inventory.items():
+                    if isinstance(item, Ammo):
+                        self.equip_ammo(key)
+                        remove_quiver = False
+                        break
+                if remove_quiver and isinstance(self.behind, Quiver):
+                    self.remove_extra_item()
+
         attack_rect = None
         if self._state != "idle":
             self._anim_step += self._anim_speed
@@ -281,7 +358,7 @@ class Player:
             self._anim_step = 0
 
         if sprint and self._state == "walk":
-            self._stamina -= 0.005
+            self._stamina -= 0.5
             if self._stamina > 0:
                 self._speed = 5
                 self._anim_speed = 1
@@ -304,34 +381,38 @@ class Player:
         if self._state == "walk":
             if move_array[0]:
                 movement[1] = -self._speed
+                self._facing = 0
             elif move_array[2]:
                 movement[1] = self._speed
+                self._facing = 2
 
             if move_array[1]:
                 movement[0] = -self._speed
+                self._facing = 1
             elif move_array[3]:
                 movement[0] = self._speed
+                self._facing = 3
 
         if self._state != "dead":
             if action == 0:
                 # up
-                self._facing = 0
                 if self._state == "idle":
+                    self._facing = 0
                     self.set_state("walk")
             elif action == 1:
                 # left
-                self._facing = 1
                 if self._state == "idle":
+                    self._facing = 1
                     self.set_state("walk")
             elif action == 2:
                 # down
-                self._facing = 2
                 if self._state == "idle":
+                    self._facing = 2
                     self.set_state("walk")
             elif action == 3:
                 # right
-                self._facing = 3
                 if self._state == "idle":
+                    self._facing = 3
                     self.set_state("walk")
             elif action == 4:
                 if self._state == "idle" or (self._state == "walk" and self._anim_step == 8):
@@ -343,10 +424,12 @@ class Player:
         sprite_y = int(self._facing*self._sprite_size)
         sprite_x = int(self._anim_step)*self._sprite_size
 
-        self._layers = self._body + self._outfit_anim 
+        self._layers = self._behind_anim + self._body + self._outfit_anim 
         if not self._outfit.has_hood:
             self._layers += self._hair
         self._layers += self._weapon_anim
+        if self.equipped_ammo is not None and self._state == "bow":
+            self._layers += self.equipped_ammo.anim_image
 
         player_surf = pygame.Surface((self._sprite_size, self._sprite_size), pygame.SRCALPHA)
         for layer in self._layers:
@@ -408,6 +491,10 @@ class Player:
     @property
     def equipped_outfit(self):
         return self._outfit
+
+    @property
+    def equipped_ammo(self):
+        return self._equipped_ammo
 
     @property
     def health(self):

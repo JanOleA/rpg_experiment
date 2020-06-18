@@ -7,14 +7,12 @@ from pygame.locals import *
 from pytmx import load_pygame
 import numpy as np
 
-from characters import Combat_Dummy
-
 
 class MessageBox:
     """ Object for displaying info boxes on the screen """
     def __init__(self, text, font, window_width, window_height,
                  duration=10, AA_text=True,
-                 tcolor=(255, 255, 255),
+                 tcolor=(0, 0, 0),
                  bgcolor=(0, 0, 0, 155)):
         """ Initialize the object.
 
@@ -43,7 +41,7 @@ class MessageBox:
         self._bgrect = pygame.Rect(window_width//2 - boxwidth//2,
                                    window_height - boxheight - 20,
                                    boxwidth, boxheight)
-        self._textpos = (self._bgrect.left + 10, self._bgrect.top + 10)
+        self._textpos = (self._bgrect.left + 10, self._bgrect.top + 5)
 
     def __call__(self):
         return self._text, self._textpos, self._bgrect, self._bgcolor
@@ -77,6 +75,7 @@ class GameMap:
 
         self._ground_surf = pygame.Surface((self._mapwidth, self._mapheight))
         self._c_object_surfs = [] # collision objects on the map
+        self._m_object_surfs = {} # non-collision objects on the map (M-objects)
         self._bridge_surf = pygame.Surface((self._mapwidth, self._mapheight), pygame.SRCALPHA)
         self._above_surf = pygame.Surface((self._mapwidth, self._mapheight), pygame.SRCALPHA)
         self._triggers = {}
@@ -85,13 +84,14 @@ class GameMap:
         self._water_hitboxes = []
 
         self._stored_npcs = []
+        self._stored_loot = []
         self._stored_player_position = (0,0)
         self._stored_camera_positon = (0,0)
 
         """ Loop through layers and add appropriate items to the right arrays and lists. """
         for k, layer in enumerate(self._map_layers):
             print(f"Loading map: {filename:>10s} | Layer: {layer.name:>25s} | Layertype: {str(layer):>35s}")
-            if ("Ground" in layer.name or "Water" in layer.name):
+            if ("ground" in layer.name.lower() or "water" in layer.name.lower()):
                 for i in range(self._mapwidth_tiles):
                     for j in range(self._mapheight_tiles):
                         x = i*32
@@ -102,7 +102,7 @@ class GameMap:
                             if "Water" in layer.name:
                                 self._water_matrix[i, j] = 1
             
-            if "C-Objects" in layer.name:
+            if "c-objects" in layer.name.lower():
                 """ Collision objects. Draw order is based on y position. """
                 for j in range(self._mapheight_tiles):
                     y_surf = pygame.Surface((self._mapwidth, 32), pygame.SRCALPHA) # make a surf for this y-position
@@ -114,9 +114,23 @@ class GameMap:
                             y_surf.blit(image, (x, 0))
                             self._collision_object_matrix[i, j] = 1
                     self._c_object_surfs.append([y_surf, y])
+
+            if "m-objects" in layer.name.lower():
+                """ Non-collision objects. Draw order is based on y position. For same y-position
+                M-objects are drawn above C-objects.
+                """
+                for j in range(self._mapheight_tiles):
+                    y_surf = pygame.Surface((self._mapwidth, 32), pygame.SRCALPHA) # make a surf for this y-position
+                    y = j*32
+                    for i in range(self._mapwidth_tiles):
+                        image = tmx_data.get_tile_image(i, j, k)
+                        x = i*32
+                        if image is not None:
+                            y_surf.blit(image, (x, 0))
+                    self._m_object_surfs[y] = y_surf
             
-            if "N-Objects" in layer.name:
-                """ Non-collision objects. Always draw above C-objects and characters. """
+            if "n-objects" in layer.name.lower():
+                """ Non-collision objects. Always draw above C-objects, M-objects and characters. """
                 for i in range(self._mapwidth_tiles):
                     for j in range(self._mapheight_tiles):
                         x = i*32
@@ -125,7 +139,7 @@ class GameMap:
                         if image is not None:
                             self._above_surf.blit(image, (x, y))
 
-            if "Bridges" in layer.name:
+            if "bridges" in layer.name.lower():
                 """ Bridges remove water hitboxes. Always drawn below characters. """
                 offset_y = layer.offsety
                 for i in range(self._mapwidth_tiles):
@@ -137,14 +151,15 @@ class GameMap:
                             self._bridge_surf.blit(image, (x, y))
                             self._bridge_matrix[i, j] = 1
 
-            if "Colliders" in layer.name:
+            if "colliders" in layer.name.lower():
                 """ Not drawn """
                 offset_y = layer.offsety
+                offset_x = layer.offsetx
                 for j in range(self._mapheight_tiles):
                     y = j*32 + offset_y
                     for i in range(self._mapwidth_tiles):
                         prop = tmx_data.get_tile_properties(i, j, k)
-                        x = i*32
+                        x = i*32 + offset_x
                         if prop is not None:
                             collidertype = prop["type"]
                             hitboxes = []
@@ -202,13 +217,25 @@ class GameMap:
                             for l, hitbox in enumerate(hitboxes):
                                 self._collision_hitboxes.append([f"{i}-{j}cmapobj-{collidertype}-{l}", hitbox])
         
-            if "Triggers" in layer.name:
+            if "triggers" in layer.name.lower():
                 for item in layer:
                     delay = 20
                     if "delay" in item.properties:
                         delay = item.properties["delay"]
-                    new_trigger = Trigger(item.name, delay)
+                    max_num_triggers = 0
+                    if "max_num_triggers" in item.properties:
+                        max_num_triggers = item.properties["max_num_triggers"]
+                    new_trigger = Trigger(item.name, delay = delay, max_num_triggers = max_num_triggers)
                     self._triggers[new_trigger] = pygame.Rect(item.x, item.y, item.width, item.height)
+
+        for surf, y in self._c_object_surfs:
+            if y in self._m_object_surfs:
+                m_surf = self._m_object_surfs[y]
+                surf.blit(m_surf, (0, 0))
+                del self._m_object_surfs[y]
+
+        for y, surf in self._m_object_surfs.items():
+            self._c_object_surfs.append([surf, y])
 
         self._ground_surf.blit(self._bridge_surf, (0,0))
 
@@ -256,17 +283,18 @@ class GameMap:
                     self._water_hitboxes.append([f"{i}-{j}wmapobj-comb", hitbox])
 
 
-    def store_data(self, npcs, player_position, camera_position):
+    def store_data(self, npcs, loot, player_position, camera_position):
         """ Stores the current NPCs in the map, player position and camera
         position. This can be retrieved with 'retrieve_data()' when loading the
         map again.
         """
         self._stored_npcs = npcs
+        self._stored_loot = loot
         self._stored_player_position = player_position
         self._stored_camera_positon = camera_position
 
     def retrieve_data(self):
-        return self._stored_npcs, np.array(self._stored_player_position), self._stored_camera_positon
+        return self._stored_npcs, self._stored_loot, np.array(self._stored_player_position), self._stored_camera_positon
 
 
     def recursive_expand_square(self, x, y, cur_width, cur_height, matrix):
@@ -328,7 +356,13 @@ class GameMap:
 
     @property
     def collision_obj_surfs(self):
+        """ C-objects surfs """
         return self._c_object_surfs
+
+    @property
+    def non_collison_obj_surfs(self):
+        """ M-objects surfs """
+        return self._m_object_surfs
 
     @property
     def bridge_surf(self):
@@ -336,6 +370,7 @@ class GameMap:
 
     @property
     def above_surf(self):
+        """ N-objects surfs """
         return self._above_surf
 
     @property
@@ -366,25 +401,39 @@ class GameMap:
 
 
 class Trigger:
-    def __init__(self, name, delay = 20):
+    def __init__(self, name, delay = 20, max_num_triggers = 0):
         self._name = name
         self._is_triggered = False
         self._delay = delay
         self._last_triggered = time.time() - delay
+        self._max_num_triggers = max_num_triggers
+        self._times_triggered = 0
+        self._disabled = False
 
     def untrigger(self):
         """ Reset the last triggered timer """
         self._last_triggered = time.time() - self._delay
+        self._times_triggered -= 1
+        if self._times_triggered < 0:
+            self._times_triggered = 0
 
     def __str__(self):
         return f"Trigger: {self._name}"
 
     def __call__(self):
-        if time.time() - self._last_triggered > self._delay:
+        if (time.time() - self._last_triggered > self._delay
+                and not self._disabled):
             self._last_triggered = time.time()
+            self._times_triggered += 1
+            if self._times_triggered >= self._max_num_triggers and self._max_num_triggers != 0:
+                self._disabled = True
             return self._name
         else:
             return None
+
+    @property
+    def disabled(self):
+        return self._disabled
 
     @property
     def name(self):

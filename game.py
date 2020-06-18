@@ -9,7 +9,8 @@ from pygame.locals import *
 import numpy as np
 
 from characters import Player, Combat_Dummy
-from items import Weapon, Outfit, Arrow, Projectile
+from items import (Weapon, Outfit, Arrow, Projectile,
+                   ArrowAmmo, Ammo, Loot, Extra_Item, Quiver)
 from gameobjects import GameMap, MessageBox, Trigger
 from triggerscripts import triggerscripts
 
@@ -48,41 +49,116 @@ class Game:
         """ Load images from all sprite folders with the given folder name
         into the specified dictionary
         """
-        print(f"Loading images from: wulax.{folder_name}")
-        folders = glob.glob(os.path.join(os.getcwd(),
-                                           "sprites",
-                                           "wulax",
-                                           "png",
-                                           folder_name,
-                                           "*.png"))
+        print(f"Loading images from: sprites.wulax.{folder_name}")
+        files = glob.glob(os.path.join(os.getcwd(),
+                                       "sprites",
+                                       "wulax",
+                                       "png",
+                                       folder_name,
+                                       "*.png"))
 
-        folders += glob.glob(os.path.join(os.getcwd(),
-                                           "sprites",
-                                           "wulax",
-                                           "png",
-                                           "64x64",
-                                           folder_name,
-                                           "*.png"))
+        files += glob.glob(os.path.join(os.getcwd(),
+                                        "sprites",
+                                        "wulax",
+                                        "png",
+                                        "64x64",
+                                        folder_name,
+                                        "*.png"))
                                            
-        for item in folders:            
+        for item in files:            
             image = pygame.image.load(item).convert_alpha()
             item_name = item.split("\\")[-1].split(".p")[0] # use the filename as key, but without '.png'
             item_name = item_name.split("/")[-1]
             dict[item_name] = image
 
+    def load_image_animations_combined(self, image_path, name):
+        """ Loads an image where the animations are combined in the order:
+        spellcast
+        thrust
+        walkcycle
+        slash
+        bow
+        hurt
+
+        Places the images in the correct dictionaries from self._images
+
+        Arguments:
+        image_path -- list containing the path to the image from game folder.
+        """
+        path = os.path.join(os.getcwd(), *image_path)
+        print(f"Loading image: {'.'.join(image_path)}")
+        full_image = pygame.image.load(path).convert_alpha()
+
+        spellcast_surf = pygame.surface.Surface((64*7, 64*4), pygame.SRCALPHA)
+        spellcast_surf.blit(full_image, (0,0))
+        self._images["spellcast"][name] = spellcast_surf
+
+        thrust_surf = pygame.surface.Surface((64*8, 64*4), pygame.SRCALPHA)
+        thrust_surf.blit(full_image, (0,0), (0, 64*4, 64*8, 64*4))
+        self._images["thrust"][name] = thrust_surf
+
+        walk_surf = pygame.surface.Surface((64*9, 64*4), pygame.SRCALPHA)
+        walk_surf.blit(full_image, (0,0), (0, 64*8, 64*9, 64*4))
+        self._images["walkcycle"][name] = walk_surf
+
+        slash_surf = pygame.surface.Surface((64*6, 64*4), pygame.SRCALPHA)
+        slash_surf.blit(full_image, (0,0), (0, 64*12, 64*6, 64*4))
+        self._images["slash"][name] = slash_surf
+
+        bow_surf = pygame.surface.Surface((64*13, 64*4), pygame.SRCALPHA)
+        bow_surf.blit(full_image, (0,0), (0, 64*16, 64*13, 64*4))
+        self._images["bow"][name] = bow_surf
+
+        hurt_surf = pygame.surface.Surface((64*6, 64), pygame.SRCALPHA)
+        hurt_surf.blit(full_image, (0,0), (0, 64*20, 64*6, 64))
+        self._images["hurt"][name] = hurt_surf
+
+    def load_icons(self):
+        files = glob.glob(os.path.join(os.getcwd(),
+                                       "sprites",
+                                       "icons",
+                                       "*.png"))
+        for item in files:
+            item_name = item.split("\\")[-1].split(".p")[0] # use the filename as key, but without '.png'
+            item_name = item_name.split("/")[-1]
+            print(f"Loading sprites.icons.{item_name}.png")    
+            image = pygame.image.load(item).convert_alpha()
+            self._icons[item_name] = image
+
     def get_icon(self, name):
-        img = pygame.image.load(os.path.join(os.getcwd(),
-                                             "sprites",
-                                             "icons",
-                                             f"{name}.png"))
-        img.convert_alpha()
+        img = self._icons[name]
         return img
+
+    def load_legionarmor(self):
+        self.load_image_animations_combined(["sprites", "legionarmor", "Male_sandals.png"], "FEET_legionarmor_sandals_male")
+        self.load_image_animations_combined(["sprites", "legionarmor", "Male_legionSkirt.png"], "LEGS_legionarmor_skirt_male")
+        self.load_image_animations_combined(["sprites", "legionarmor", "plate", "Male_legionplate_steel.png"], "TORSO_legionarmor_plate_steel_male")
+        self.load_image_animations_combined(["sprites", "legionarmor", "helmet", "Male_legion1helmet_steel.png"], "HEAD_legionarmor_helmet_steel_male")
+        self.load_image_animations_combined(["sprites", "legionarmor", "bauldron", "Male_legionbauldron_steel.png"], "HANDS_legionarmor_bauldron_steel_male")
+        self.load_image_animations_combined(["sprites", "legionarmor", "plate", "Male_legionplate_bronze.png"], "TORSO_legionarmor_plate_bronze_male")
+        self.load_image_animations_combined(["sprites", "legionarmor", "helmet", "Male_legion1helmet_bronze.png"], "HEAD_legionarmor_helmet_bronze_male")
+        self.load_image_animations_combined(["sprites", "legionarmor", "bauldron", "Male_legionbauldron_bronze.png"], "HANDS_legionarmor_bauldron_bronze_male")
+        self.load_image_animations_combined(["sprites", "legionarmor", "plate", "Male_legionplate_gold.png"], "TORSO_legionarmor_plate_gold_male")
+        self.load_image_animations_combined(["sprites", "legionarmor", "helmet", "Male_legion1helmet_gold.png"], "HEAD_legionarmor_helmet_gold_male")
+        self.load_image_animations_combined(["sprites", "legionarmor", "bauldron", "Male_legionbauldron_gold.png"], "HANDS_legionarmor_bauldron_gold_male")
+        self.load_image_animations_combined(["sprites", "legionarmor", "Female_sandals.png"], "FEET_legionarmor_sandals_female")
+        self.load_image_animations_combined(["sprites", "legionarmor", "Female_legionSkirt.png"], "LEGS_legionarmor_skirt_female")
+        self.load_image_animations_combined(["sprites", "legionarmor", "plate", "Female_legionplate_steel.png"], "TORSO_legionarmor_plate_steel_female")
+        self.load_image_animations_combined(["sprites", "legionarmor", "helmet", "Female_legion1helmet_steel.png"], "HEAD_legionarmor_helmet_steel_female")
+        self.load_image_animations_combined(["sprites", "legionarmor", "bauldron", "Female_legionbauldron_steel.png"], "HANDS_legionarmor_bauldron_steel_female")
+        self.load_image_animations_combined(["sprites", "legionarmor", "plate", "Female_legionplate_bronze.png"], "TORSO_legionarmor_plate_bronze_female")
+        self.load_image_animations_combined(["sprites", "legionarmor", "helmet", "Female_legion1helmet_bronze.png"], "HEAD_legionarmor_helmet_bronze_female")
+        self.load_image_animations_combined(["sprites", "legionarmor", "bauldron", "Female_legionbauldron_bronze.png"], "HANDS_legionarmor_bauldron_bronze_female")
+        self.load_image_animations_combined(["sprites", "legionarmor", "plate", "Female_legionplate_gold.png"], "TORSO_legionarmor_plate_gold_female")
+        self.load_image_animations_combined(["sprites", "legionarmor", "helmet", "Female_legion1helmet_gold.png"], "HEAD_legionarmor_helmet_gold_female")
+        self.load_image_animations_combined(["sprites", "legionarmor", "bauldron", "Female_legionbauldron_gold.png"], "HANDS_legionarmor_bauldron_gold_female")
 
 
     """ Outfit definitions """
     def make_unhooded_robe(self):
         robe_icon = self.get_icon("robe")
-        robe = Outfit("Unhooded robe", robe_icon, armor = 2)
+        looticon = self.get_icon("robe_looticon")
+        robe = Outfit("Unhooded robe", robe_icon, looticon = looticon, armor = 2, lootname = "a robe without a hood")
         robe.walkcycle = [self._walkcycle_images["FEET_shoes_brown"],
                           self._walkcycle_images["LEGS_robe_skirt"],
                           self._walkcycle_images["TORSO_robe_shirt_brown"]]
@@ -103,7 +179,8 @@ class Game:
 
     def make_platearmor(self):
         platearmor_icon = self.get_icon("platearmor")
-        platearmor = Outfit("Plate armor", platearmor_icon, has_hood = True, armor = 5)
+        looticon = self.get_icon("platearmor_looticon")
+        platearmor = Outfit("Plate armor", platearmor_icon, looticon = looticon, has_hood = True, armor = 5, lootname = "a set of plate armor")
         platearmor.walkcycle = [self._walkcycle_images["FEET_plate_armor_shoes"],
                                 self._walkcycle_images["LEGS_plate_armor_pants"],
                                 self._walkcycle_images["TORSO_plate_armor_torso"],
@@ -137,26 +214,84 @@ class Game:
 
         return platearmor
 
+    def make_roman_platearmor(self, color = "steel"):
+        color = color.lower()
+        legionarmor_icon = self.get_icon(f"legionarmor_{color}")
+        legionarmor_looticon = self.get_icon(f"legionarmor_{color}_looticon")
+        legionarmor = Outfit(f"Legion Armor", legionarmor_icon, looticon = legionarmor_looticon, has_hood = True, armor = 5, lootname = f"a set of {color} Roman armor")
+
+        legionarmor.walkcycle = [self._walkcycle_images["FEET_legionarmor_sandals_male"],
+                                 self._walkcycle_images["LEGS_legionarmor_skirt_male"],
+                                 self._walkcycle_images[f"TORSO_legionarmor_plate_{color}_male"],
+                                 self._walkcycle_images[f"HEAD_legionarmor_helmet_{color}_male"],
+                                 self._walkcycle_images[f"HANDS_legionarmor_bauldron_{color}_male"]]
+        legionarmor.slash = [self._slash_images["FEET_legionarmor_sandals_male"],
+                             self._slash_images["LEGS_legionarmor_skirt_male"],
+                             self._slash_images[f"TORSO_legionarmor_plate_{color}_male"],
+                             self._slash_images[f"HEAD_legionarmor_helmet_{color}_male"],
+                             self._slash_images[f"HANDS_legionarmor_bauldron_{color}_male"]]
+        legionarmor.thrust = [self._thrust_images["FEET_legionarmor_sandals_male"],
+                              self._thrust_images["LEGS_legionarmor_skirt_male"],
+                              self._thrust_images[f"TORSO_legionarmor_plate_{color}_male"],
+                              self._thrust_images[f"HEAD_legionarmor_helmet_{color}_male"],
+                              self._thrust_images[f"HANDS_legionarmor_bauldron_{color}_male"]]
+        legionarmor.hurt = [self._hurt_images["FEET_legionarmor_sandals_male"],
+                            self._hurt_images["LEGS_legionarmor_skirt_male"],
+                            self._hurt_images[f"TORSO_legionarmor_plate_{color}_male"],
+                            self._hurt_images[f"HEAD_legionarmor_helmet_{color}_male"],
+                            self._hurt_images[f"HANDS_legionarmor_bauldron_{color}_male"]]
+        legionarmor.bow = [self._bow_images["FEET_legionarmor_sandals_male"],
+                           self._bow_images["LEGS_legionarmor_skirt_male"],
+                           self._bow_images[f"TORSO_legionarmor_plate_{color}_male"],
+                           self._bow_images[f"HEAD_legionarmor_helmet_{color}_male"],
+                           self._bow_images[f"HANDS_legionarmor_bauldron_{color}_male"]]
+
+        return legionarmor
+
+    def make_quiver(self):
+        quiver_icon = self.get_icon("bow")
+        quiver = Quiver("Quiver", quiver_icon)
+        quiver.walkcycle = [self._walkcycle_images["BEHIND_quiver"]]
+        quiver.slash = [self._slash_images["BEHIND_quiver"]]
+        quiver.thrust = [self._thrust_images["BEHIND_quiver"]]
+        quiver.hurt = [self._hurt_images["BEHIND_quiver"]]
+        quiver.bow = []
+
+        return quiver
+
     """ Weapon definitions """
     def make_dagger(self):
         dagger_icon = self.get_icon("dagger")
-        dagger = Weapon("Dagger", dagger_icon, damage = 10)
+        looticon = self.get_icon("dagger_looticon")
+        dagger = Weapon("Dagger", dagger_icon, looticon = looticon, damage = 10, lootname = "a dagger")
         dagger.slash = [self._slash_images["WEAPON_dagger"]]
         return dagger
 
     def make_spear(self):
         spear_icon = self.get_icon("spear")
-        spear = Weapon("Spear", spear_icon, "thrust", range_ = 30, damage = 20)
+        looticon = self.get_icon("spear_looticon")
+        spear = Weapon("Spear", spear_icon, looticon = looticon, type_ = "thrust", range_ = 30, damage = 20, lootname = "a spear")
         spear.thrust = [self._thrust_images["WEAPON_spear"]]
         return spear
 
     def make_bow(self):
         bow_icon = self.get_icon("bow")
-        bow = Weapon("Bow", bow_icon, "bow", range_ = 10, damage = 0, projectile = Arrow) # damage = 0 -> ranged weapon
-        bow.bow = [self._bow_images["WEAPON_bow"], self._bow_images["WEAPON_arrow"]]
+        looticon = self.get_icon("bow_looticon")
+        bow = Weapon("Bow", bow_icon, looticon = looticon, type_ = "bow", range_ = 10, damage = 0, ranged = True, lootname = "a bow")
+        bow.bow = [self._bow_images["WEAPON_bow"]]
         return bow
+    
+    def make_arrow_ammo(self, amount = 1):
+        arrow_icon = self.get_icon("arrow")
+        looticon = pygame.surface.Surface((50,50), pygame.SRCALPHA)
+        for i in range(min(amount, 10)):
+            looticon.blit(self.get_icon("arrow_looticon"), (9, 30 - i*2))
+        arrow_ammo = ArrowAmmo("Arrow", arrow_icon, looticon = looticon, amount = amount)
+        arrow_ammo.anim_image = [self._bow_images["WEAPON_arrow"]]
+        return arrow_ammo
 
 
+    """ Game initalization """
     def init_game(self):
         pygame.init()
         pygame.display.set_caption("Game")
@@ -164,10 +299,8 @@ class Game:
         self._running = True
 
         pygame.font.init()
-        self.font_normal = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Regular.ttf"), 18)
-        self.font_normal_bold = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 18)
-        self.font_big = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Regular.ttf"), 25)
-        self.font_big_bold = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 25)
+        self.font_normal = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amatic-Bold.ttf"), 25)
+        self.font_big = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amatic-Bold.ttf"), 30)
         self.loadingtext = self.font_big.render("Loading...", self.AA_text, self.WHITE)
 
         self._screen.blit(self.loadingtext, (self._width/2 - self.loadingtext.get_width()/2,
@@ -186,6 +319,10 @@ class Game:
 
         self._inventory_menu = pygame.image.load(os.path.join(os.getcwd(), "graphics", "inventorymenu.png"))
         self._inventory_menu.convert_alpha()
+
+        self._scroll_messagebox_image_l = pygame.image.load(os.path.join(os.getcwd(), "graphics", "scroll_msgbox_left.png")).convert_alpha()
+        self._scroll_messagebox_image_m = pygame.image.load(os.path.join(os.getcwd(), "graphics", "scroll_msgbox_middle.png")).convert_alpha()
+        self._scroll_messagebox_image_r = pygame.image.load(os.path.join(os.getcwd(), "graphics", "scroll_msgbox_right.png")).convert_alpha()
         
         self._walkcycle_images = {}
         self._bow_images = {}
@@ -195,6 +332,9 @@ class Game:
         self._thrust_images = {}
 
         self._combat_dummy_images = {}
+        self._icons = {}
+
+        self.load_icons()
         
         self.load_image_folder("walkcycle", self._walkcycle_images)
         self.load_image_folder("bow", self._bow_images)
@@ -212,12 +352,12 @@ class Game:
                         "thrust": self._thrust_images,
                         "combat_dummy": self._combat_dummy_images}
 
+        self.load_legionarmor()
+
         hands_icon = self.get_icon("hands")
-        hands = Weapon("Hands", hands_icon, "slash", damage = 2)
+        hands = Weapon("Hands", hands_icon, type_ = "slash", damage = 2)
 
         robe = self.make_unhooded_robe()
-        bow = self.make_bow()
-        spear = self.make_spear()
 
         self.player = Player(300, 300,
                              self._walkcycle_images, 
@@ -237,13 +377,10 @@ class Game:
         self.player.add_to_inventory(hands)
         self.player.equip_weapon("Hands")
 
-        self.player.add_to_inventory(bow)
-        self.player.add_to_inventory(spear)
+        self.npcs = [] # NPCs currently in the map
+        self.loot = [] # loot currently on the map
 
-        self.npcs = []
-        self.npcs.append(Combat_Dummy(self._images, 10*32, 3*32))
-        self.npcs.append(Combat_Dummy(self._images, 45*32, 75*32))
-        self.npcs.append(Combat_Dummy(self._images, 50*32, 75*32))
+        self.manual_initial_item_setup()
 
         self._paused = False
         self._inventory = False
@@ -251,10 +388,9 @@ class Game:
         self._inv_x = 0
         self._inv_y = 0
         self._hover_item = None
-
         self._day_time = 0
 
-        #pygame.mixer.music.play(loops = -1)
+        #pygame.mixer.music.play(loops = -1) # -1 means loops forever
         #pygame.mixer.music.set_volume(0.1)
 
         self._has_displayed_sunset_msgbox = False
@@ -271,6 +407,11 @@ class Game:
         self._paused_render = self.inventory_render
         print("Loading completed...")
 
+    def manual_initial_item_setup(self):
+        """ For adding extra items to the map or player on startup. """
+        dagger = self.make_dagger()
+        self.loot.append(Loot(600, 350, dagger, 0))
+
     def on_event(self, event):
         if event.type == pygame.QUIT:
             self._running = False
@@ -283,6 +424,11 @@ class Game:
                             self.player.equip_weapon(self._hover_item[1])
                         if isinstance(self._hover_item[0], Outfit):
                             self.player.equip_outfit(self._hover_item[1])
+                        if isinstance(self._hover_item[0], Ammo):
+                            if self.player.equipped_ammo == self._hover_item[0]:
+                                self.player.unequip_ammo()
+                            else:
+                                self.player.equip_ammo(self._hover_item[1])
 
         if event.type == pygame.KEYDOWN:
             if not self._paused:
@@ -295,9 +441,9 @@ class Game:
                     if self._inventory:
                         self._paused = False
                         self._inventory == False
+                        if self._inv_hint in self._messageboxes:
+                            self._messageboxes.remove(self._inv_hint)
                 else:
-                    if self._inv_hint in self._messageboxes:
-                        self._messageboxes.remove(self._inv_hint)
                     self._paused = True
                     self._inventory = True
                     self._pausebg = self._screen.copy()
@@ -337,7 +483,7 @@ class Game:
 
         if self._current_map_name in self._maps:
             origmap = self._maps[self._current_map_name]
-            origmap.store_data(self.npcs.copy(), self.player.position.copy(), (self._cam_x, self._cam_y))
+            origmap.store_data(self.npcs.copy(), self.loot.copy(), self.player.position.copy(), (self._cam_x, self._cam_y))
 
         if not new_map in self._maps:
             new_map_object = GameMap(new_map)
@@ -348,7 +494,7 @@ class Game:
         self._current_map_name = new_map
         self.map = copy(new_map_object)
 
-        npcs, player_position, camera_position = self.map.retrieve_data()
+        npcs, loot, player_position, camera_position = self.map.retrieve_data()
         if new_player_position is None:
             new_player_position = player_position
         else:
@@ -356,9 +502,8 @@ class Game:
         if camera_position is None:
             new_cam_position = camera_position
 
-        print(new_cam_position)
-
         self.npcs = npcs
+        self.loot = loot
         self.player.set_pos(new_player_position)
         self._cam_x, self._cam_y = new_cam_position
         self._mapwidth = self.map.width
@@ -383,23 +528,25 @@ class Game:
             rect = self._player_data[2][0]
             attack_weapon = self._player_data[2][1]
 
-            if attack_weapon.projectile is not None:
+            if attack_weapon.ranged is True:
                 """ Make projectile """
-                direction = attack_weapon.facing
-                x, y = rect.center
-                if direction == 1 or direction == 3:
-                    y -= 12 # move arrow up to align with character
-                new_projectile = attack_weapon.projectile(x, y, direction)
-                img_ = new_projectile.image
-                layer = self._images[img_[0]][img_[1]]
-                projectile_surf = pygame.Surface((64, 64), pygame.SRCALPHA)
-                if direction != 0:
-                    projectile_surf.blit(layer, (0, 0), (768, int(direction*64), 64, 64))
-                else:
-                    projectile_surf.blit(layer, (0, 0), (768, 128, 64, 64))
-                    projectile_surf = pygame.transform.flip(projectile_surf, 1, 1)
+                if self.player.equipped_ammo is not None:
+                    direction = attack_weapon.facing
+                    x, y = rect.center
+                    if direction == 1 or direction == 3:
+                        y -= 12 # move arrow up to align with character
+                    new_projectile = self.player.equipped_ammo.projectile_type(x, y, direction)
+                    self.player.equipped_ammo.reduce_amount()
+                    img_ = new_projectile.image
+                    layer = self._images[img_[0]][img_[1]]
+                    projectile_surf = pygame.Surface((64, 64), pygame.SRCALPHA)
+                    if direction != 0:
+                        projectile_surf.blit(layer, (0, 0), (768, int(direction*64), 64, 64))
+                    else:
+                        projectile_surf.blit(layer, (0, 0), (768, 128, 64, 64))
+                        projectile_surf = pygame.transform.flip(projectile_surf, 1, 1)
 
-                self._projectiles.append([new_projectile, projectile_surf])
+                    self._projectiles.append([new_projectile, projectile_surf])
             else:
                 self.attack_rects[self.player] = self._player_data[2]
 
@@ -415,6 +562,27 @@ class Game:
         for _, hitbox in self.map.collision_hitboxes + self.map.water_hitboxes:
             self.hitboxes[_] = hitbox
 
+        """ Check for loot pickups """
+        del_loot = []
+        for loot in self.loot:
+            loot.step()
+            player_dist = np.linalg.norm(loot.position - self._player_data[0])
+            if player_dist < 32:
+                self.player.add_to_inventory(loot.give_item)
+                if isinstance(loot.give_item, Ammo):
+                    quiver = self.make_quiver()
+                    self.player.add_extra_item(quiver)
+                loot_messagebox = MessageBox(f"You found {loot.give_item_name}", self.font_normal, self._width, self._height)
+                self._messageboxes.append(loot_messagebox)
+                del_loot.append(loot)
+            if loot.remove:
+                del_loot.append(loot)
+
+        for loot in del_loot:
+            if loot in self.loot:
+                self.loot.remove(loot)
+
+        """ Step projectiles and check if they have existed for too long """
         del_projectiles = []
         for projectile in self._projectiles:
             hitbox = projectile[0].step()
@@ -455,12 +623,15 @@ class Game:
         """ Checking player triggers """
         trigger = playerhitbox.collidedict(self.map.triggers, 1)
         if trigger is not None:
+            if trigger[0].disabled:
+                del self.map.triggers[trigger[0]]
             trigger_name = trigger[0]()
             if trigger_name is not None:
                 if trigger_name in triggerscripts:
                     add_mboxes, add_npcs, newmap, movement_req = triggerscripts[trigger_name]()
                     can_trigger = False
                     if movement_req is not None:
+                        # check that the player is moving the correct direction
                         if movement_req == 0:
                             if movement_y < 0:
                                 can_trigger = True
@@ -472,7 +643,6 @@ class Game:
                                 can_trigger = True
                         if movement_req == 3:
                             if movement_x > 0:
-                                print(can_trigger)
                                 can_trigger = True
                     else:
                         can_trigger = True
@@ -487,6 +657,8 @@ class Game:
                             return
                     else:
                         trigger[0].untrigger()
+                else:
+                    print(f"Attempted to trigger '{trigger_name}', but it does not exist in triggerscripts.")
                     
         """ Collision testing the player """
         hitboxes_no_player = self.hitboxes.copy()
@@ -651,6 +823,11 @@ class Game:
             item_positions.append(np.array([0, y - 32]))
             yshifts.append(32)
 
+        for loot in self.loot:
+            item_surfs.append(loot.image)
+            item_positions.append(loot.position - 32)
+            yshifts.append(0)
+
         item_surfs = np.array(item_surfs)
         item_positions = np.array(item_positions)
         yshifts = np.array(yshifts)
@@ -670,17 +847,21 @@ class Game:
 
         """ Draw characters and items """
         for surf, pos, yshift in zip(item_surfs, item_positions, yshifts):
-            pos[1] += yshift
-            pos = pos.astype(int) - campos
-            self._screen.blit(surf, pos)
+            try:
+                pos[1] += yshift
+                pos = pos.astype(int) - campos
+                self._screen.blit(surf, pos)
+            except Exception as e:
+                print(e)
+                print(pos)
+                sys.exit(1)
         
         """ Draw items that are always above """
         self._screen.blit(self.map.above_surf, (0 - cam_x, 0 - cam_y))
 
         """ Draw night effect """
         if self.map.outdoors:
-            night = pygame.surface.Surface((self._width, self._height))
-            night.fill(self.BLACK)
+            night = pygame.surface.Surface((self._width, self._height), pygame.HWSURFACE)
             alpha = None
             if self._day_time > 175 and self._day_time < 250:
                 alpha = (255 - abs(250 - self._day_time)*3)/2  
@@ -692,6 +873,7 @@ class Game:
                 alpha = (255 - abs(-self._day_time - 50)*3)/2
 
             if alpha is not None:
+                night.fill((0, 0, 0))
                 night.set_alpha(alpha)
                 self._screen.blit(night, (0, 0))
 
@@ -707,13 +889,21 @@ class Game:
 
         """ Draw hitboxes if set true """
         if self._draw_hitboxes:
+            hitboxes_surf = pygame.surface.Surface((self._width, self._height), pygame.SRCALPHA)
             for a, hitbox in self.hitboxes.items():
                 draw_hitbox = hitbox.move(-cam_x, -cam_y)
-                pygame.draw.rect(self._screen, self.WHITE, draw_hitbox)
+                pygame.draw.rect(hitboxes_surf, (255, 255, 255, 150), draw_hitbox)
 
             for a, hitbox in self.map.water_hitboxes:
                 draw_hitbox = hitbox.move(-cam_x, -cam_y)
-                pygame.draw.rect(self._screen, self.BLUE, draw_hitbox)
+                pygame.draw.rect(hitboxes_surf, (0, 0, 255, 150), draw_hitbox)
+
+            for projectile, a in self._projectiles:
+                hitbox = projectile.hitbox
+                draw_hitbox = hitbox.move(-cam_x, -cam_y)
+                pygame.draw.rect(hitboxes_surf, (0, 255, 255, 100), draw_hitbox)
+
+            self._screen.blit(hitboxes_surf, (0,0))
 
         if self._draw_triggers:
             for a, trigger in self.map.triggers.items():
@@ -748,7 +938,7 @@ class Game:
         if stamina > 0:
             pygame.draw.rect(self._screen, self.DARKERGREEN, player_stamina)
         
-        self._screen.blit(time_text, (5, self._height - 25))
+        self._screen.blit(time_text, (5, self._height - 35))
 
     def loading_render(self, cam_x, cam_y, campos):
         black_bg = pygame.Rect(0, 0, self._width, self._height)
@@ -776,21 +966,26 @@ class Game:
                 inv_matrix.append([])
             inv_matrix[row].append([item, key])
             icon = item.icon
+            if isinstance(item, Ammo):
+                valtext = self.font_normal.render(f"{item.amount}", self.AA_text, self.WHITE)
+                text_x = column*64 + 91 - valtext.get_width()
+                text_y = row*64 + 100
+                self._screen.blit(valtext, (text_x, text_y))
             self._screen.blit(icon, (column*64 + 42, row*64 + 74))
             
         try:
             if self._inv_x != -1 and self._inv_y != -1:
                 self._hover_item = inv_matrix[self._inv_y][self._inv_x]
                 hover_item = self._hover_item[0]
-                nametext = self.font_big_bold.render(f"{hover_item.name.title()}", self.AA_text, self.WHITE)
+                nametext = self.font_big.render(f"{hover_item.name.title()}", self.AA_text, self.WHITE)
+                self._screen.blit(nametext, (450, 168))
                 if isinstance(hover_item, Weapon):
                     text2 = self.font_normal.render(f"Damage: {hover_item.damage}", self.AA_text, self.WHITE)
                     text3 = self.font_normal.render(f"Range: {hover_item.range}", self.AA_text, self.WHITE)
                     text4 = self.font_normal.render(f"Durability: {hover_item.durability}", self.AA_text, self.WHITE)
-                self._screen.blit(nametext, (450, 168))
-                self._screen.blit(text2, (450, 200))
-                self._screen.blit(text3, (450, 225))
-                self._screen.blit(text4, (450, 250))
+                    self._screen.blit(text2, (450, 200))
+                    self._screen.blit(text3, (450, 225))
+                    self._screen.blit(text4, (450, 250))
         except IndexError:
             pass
 
@@ -807,7 +1002,7 @@ class Game:
                 try:
                     self._hover_item = [player_outfits[index], index]
                     hover_item = player_outfits[index]
-                    nametext = self.font_big_bold.render(f"{hover_item.name.title()}", self.AA_text, self.WHITE)
+                    nametext = self.font_big.render(f"{hover_item.name.title()}", self.AA_text, self.WHITE)
                     if isinstance(hover_item, Outfit):
                         text2 = self.font_normal.render(f"Armor: {hover_item.armor}", self.AA_text, self.WHITE)
                         text3 = self.font_normal.render(f"Durability: {hover_item.durability}", self.AA_text, self.WHITE)
@@ -825,6 +1020,15 @@ class Game:
         icon = equipped_outfit.icon
         self._screen.blit(icon, (522, 74))
 
+        equipped_ammo = self.player.equipped_ammo
+        if equipped_ammo is not None:
+            icon = equipped_ammo.icon
+            valtext = self.font_normal.render(f"{equipped_ammo.amount}", self.AA_text, self.WHITE)
+            text_x = 634 - valtext.get_width()
+            text_y = 100
+            self._screen.blit(valtext, (text_x, text_y))
+            self._screen.blit(icon, (586, 74))
+
     def render(self):
         if self.map.outdoors:
             cam_x = min(max(self._cam_x, 0), self._mapwidth - self._width)
@@ -839,18 +1043,26 @@ class Game:
         if self._paused:
             self._paused_render(cam_x, cam_y, campos)
 
-        if self._unpaused_render != self.loading_render:
+        if self._unpaused_render != self.loading_render and not self._paused:
             time_now = time.time()
             del_messageboxes = []
             tsurf = pygame.Surface((self._width, self._height), pygame.SRCALPHA)
             move_up = 0
+            scroll_left_width = self._scroll_messagebox_image_l.get_width()
+            scroll_right_width = self._scroll_messagebox_image_r.get_width()
             for i, box in enumerate(self._messageboxes):
                 text, textpos, bgrect, bgcolor = box()
                 bgrect = bgrect.move(0, -move_up)
                 textpos = (textpos[0], textpos[1] - move_up)
-                pygame.draw.rect(self._screen, bgcolor, bgrect)
+                scroll_surf = pygame.surface.Surface((bgrect.width, 51), pygame.SRCALPHA)
+                scroll_middle = pygame.transform.scale(self._scroll_messagebox_image_m, (scroll_surf.get_width() - scroll_left_width - scroll_right_width, 51))
+                scroll_surf.blit(scroll_middle, (scroll_left_width, 0))
+                scroll_surf.blit(self._scroll_messagebox_image_l, (0, 0))
+                scroll_surf.blit(self._scroll_messagebox_image_r, (bgrect.width - scroll_right_width, 0))
+
+                self._screen.blit(scroll_surf, (bgrect.left, bgrect.top - 5))
                 tsurf.blit(text, textpos)
-                move_up += bgrect.height + 10
+                move_up += bgrect.height + 13
                 if (time_now - box.init_time) > box.duration:
                     del_messageboxes.append(box)
 

@@ -8,13 +8,14 @@ import numpy as np
 
 from gameobjects import MessageBox, GameMap, Trigger
 
-
 pygame.font.init()
-font_normal = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Regular.ttf"), 18)
-font_normal_bold = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 18)
-font_big = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Regular.ttf"), 25)
-font_big_bold = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 25)
+font_normal = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amatic-Bold.ttf"), 25)
+font_big = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amatic-Bold.ttf"), 30)
 
+directions = {"up": 0,
+              "left": 1,
+              "down": 2,
+              "right": 3}
 
 class TriggerScript:
     """ Triggerscripts can currently display a messagebox. Next on the plan
@@ -67,29 +68,46 @@ def new_script(name, movement_req = None):
 
     return script
 
-cave1_script = new_script("cave1", movement_req = 0)
-cave1_script.add_messagebox("Rocks are blocking the cave entrance.\nYou won't be able to go back that way.", font_normal)
-
-villa1_1 = new_script("villa1-1", movement_req = 0)
-villa1_1.set_map("villa1.tmx", (1024, 1536), (384, 1136))
-
-villa1_2 = new_script("villa1-2", movement_req = 3)
-villa1_2.set_map("villa1.tmx", (32, 832), (-608, 432))
-
-exitvilla1_1 = new_script("exitvilla1-1", movement_req = 2)
-exitvilla1_1.set_map("map1.tmx", (2432, 695), (1796, 295))
-
-exitvilla1_2 = new_script("exitvilla1-2", movement_req = 1)
-exitvilla1_2.set_map("map1.tmx", (2196, 500), (1556, 100))
-
-villa2 = new_script("villa2", movement_req = 0)
-villa2.add_messagebox("The door won't open. It's locked.", font_normal)
-
-entervillagehouse1 = new_script("entervillagehouse1", movement_req = 0)
-entervillagehouse1.set_map('village_house_1.tmx', (320, 580), (-320, 180))
-
-exitvillagehouse1 = new_script("exitvillagehouse1", movement_req = 2)
-exitvillagehouse1.set_map('map1.tmx', (1550, 2416), (1080, 1880))
-
-game_init = new_script("game_init")
-game_init.set_map('map1.tmx', (300, 300), (0, 0))
+""" Parse the triggerscripts.script file """
+with open("triggerscripts.script", "r") as infile:
+    print("Loading triggerscripts...")
+    lines = infile.readlines()
+    parse_depth = 0
+    change_map = False
+    for line in lines:
+        line = line.split("#")[0].strip()
+        if "{" in line:
+            line = line.split("{")
+            if line[0].strip() == "change_map" and parse_depth == 1:
+                change_map = True
+            if parse_depth == 0:
+                trigger_name = line[0].strip()
+                script_ = new_script(trigger_name)
+            parse_depth += 1
+        elif "}" in line:
+            line = line.split("}")
+            if change_map:
+                script_.set_map(map_name, player_pos, camera_pos)
+                change_map = False
+            parse_depth -= 1
+        else:
+            if parse_depth == 1:
+                change_map = False
+                if "movement_requirement" in line:
+                    req = line.split("=")[-1].strip()
+                    script_.movement_req = directions[req]
+                if "show_messagebox" in line:
+                    msg_text = line.split('"')[1]
+                    script_.add_messagebox(msg_text, font_normal)
+            elif parse_depth == 2:
+                if change_map:
+                    if "map_name" in line:
+                        map_name = line.split("=")[1].strip()
+                    elif "player_pos" in line:
+                        player_pos = np.array(line.split("=")[1].strip().strip("()").replace(" ", "").split(","), dtype = np.float64)
+                    elif "camera_pos" in line:
+                        camera_pos = np.array(line.split("=")[1].strip().strip("()").replace(" ", "").split(","), dtype = np.float64)
+        if parse_depth < 0:
+            print("Parse error in triggerscripts.")
+            sys.exit(1)
+        

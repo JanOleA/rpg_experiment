@@ -1,0 +1,87 @@
+# setup for what events when the player encounters the triggers in a map
+# currently implemented events are:
+# map change
+# displaying a message box
+# on the TODO list: NPC spawns
+
+game_init {
+    # runs on game initialization
+    change_map {
+        map_name = map1.tmx
+        player_pos = (300, 300)
+        camera_pos = (0, 0)
+    }
+}
+
+cave1 {
+    movement_requirement = up
+    show_messagebox("Rocks are blocking the cave entrance. You won't be able to go back that way.")
+}
+
+capizzi-sign-1 {
+    movement_requirement = up
+    show_messagebox("The sign reads: 'road to Capizzi.'")
+}
+
+approach_capizzi {
+    show_messagebox("Capizzi")
+}
+
+villa1-1 {
+    movement_requirement = up
+    change_map {
+        map_name = villa1.tmx
+        player_pos = (1024, 1536)
+        camera_pos = (384, 1136)
+    }
+}
+
+villa1-2 {
+    movement_requirement = right
+    change_map {
+        map_name = villa1.tmx
+        player_pos = (32, 832)
+        camera_pos = (-608, 432)
+    }
+}
+
+exitvilla1-1 {
+    movement_requirement = down
+    change_map {
+        map_name = map1.tmx
+        player_pos = (2432, 695)
+        camera_pos = (1796, 295)
+    }
+}
+
+exitvilla1-2 {
+    movement_requirement = left
+    change_map {
+        map_name = map1.tmx
+        player_pos = (2196, 468)
+        camera_pos = (1556, 68)
+    }
+}
+
+villa2 {
+    movement_requirement = up
+    show_messagebox("The door won't open. It's locked.")
+}
+
+entervillagehouse1 {
+    movement_requirement = up
+    change_map {
+        map_name = village_house_1.tmx
+        player_pos = (320, 580)
+        camera_pos = (-320, 180)
+    }
+}
+
+exitvillagehouse1 {
+    movement_requirement = down
+    change_map {
+        map_name = map1.tmx
+        player_pos = (1550, 2416)
+        camera_pos = (1080, 1880)
+    }
+}
