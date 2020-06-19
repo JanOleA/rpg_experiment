@@ -88,6 +88,9 @@ class GameMap:
         self._stored_player_position = (0,0)
         self._stored_camera_positon = (0,0)
 
+        self.load_layers(filename, tmx_data)
+
+    def load_layers(self, filename, tmx_data):
         """ Loop through layers and add appropriate items to the right arrays and lists. """
         for k, layer in enumerate(self._map_layers):
             print(f"Loading map: {filename:>10s} | Layer: {layer.name:>25s} | Layertype: {str(layer):>35s}")
@@ -281,7 +284,6 @@ class GameMap:
 
                     hitbox = pygame.Rect(i*32, j*32, comb_size[0]*32, comb_size[1]*32)
                     self._water_hitboxes.append([f"{i}-{j}wmapobj-comb", hitbox])
-
 
     def store_data(self, npcs, loot, player_position, camera_position):
         """ Stores the current NPCs in the map, player position and camera

@@ -8,7 +8,7 @@ import pygame
 from pygame.locals import *
 import numpy as np
 
-from characters import Player, Combat_Dummy
+from characters import Player, Combat_Dummy, NPC
 from items import (Weapon, Outfit, Arrow, Projectile,
                    ArrowAmmo, Ammo, Loot, Extra_Item, Quiver)
 from gameobjects import GameMap, MessageBox, Trigger
@@ -154,6 +154,17 @@ class Game:
         self.load_image_animations_combined(["sprites", "legionarmor", "bauldron", "Female_legionbauldron_gold.png"], "HANDS_legionarmor_bauldron_gold_female")
 
 
+    """ Body images definitions """
+    def make_standard_male(self):
+        body_image_collection = {}
+        body_image_collection["walkcycle"] = [self._walkcycle_images["BODY_male"], self._walkcycle_images["HEAD_hair_blonde"]]
+        body_image_collection["slash"] = [self._slash_images["BODY_male"], self._slash_images["HEAD_hair_blonde"]]
+        body_image_collection["thrust"] = [self._thrust_images["BODY_male"], self._thrust_images["HEAD_hair_blonde"]]
+        body_image_collection["bow"] = [self._bow_images["BODY_male"], self._bow_images["HEAD_hair_blonde"]]
+        body_image_collection["hurt"] = [self._hurt_images["BODY_male"], self._hurt_images["HEAD_hair_blonde"]]
+
+        return body_image_collection
+
     """ Outfit definitions """
     def make_unhooded_robe(self):
         robe_icon = self.get_icon("robe")
@@ -176,6 +187,28 @@ class Game:
                     self._bow_images["TORSO_robe_shirt_brown"]]
 
         return robe
+
+    def make_plainclothes(self):
+        icon = self.get_icon("plainclothes")
+        looticon = self.get_icon("plainclothes_looticon")
+        plainclothes = Outfit("Plain clothes", icon, looticon = looticon, armor = 1, lootname = "some plain clothes")
+        plainclothes.walkcycle = [self._walkcycle_images["FEET_shoes_brown"],
+                                  self._walkcycle_images["LEGS_pants_greenish"],
+                                  self._walkcycle_images["TORSO_leather_armor_shirt_white"]]
+        plainclothes.slash = [self._slash_images["FEET_shoes_brown"],
+                              self._slash_images["LEGS_pants_greenish"],
+                              self._slash_images["TORSO_leather_armor_shirt_white"]]
+        plainclothes.thrust = [self._thrust_images["FEET_shoes_brown"],
+                               self._thrust_images["LEGS_pants_greenish"],
+                               self._thrust_images["TORSO_leather_armor_shirt_white"]]
+        plainclothes.hurt = [self._hurt_images["FEET_shoes_brown"],
+                             self._hurt_images["LEGS_pants_greenish"],
+                             self._hurt_images["TORSO_leather_armor_shirt_white"]]
+        plainclothes.bow = [self._bow_images["FEET_shoes_brown"],
+                            self._bow_images["LEGS_robe_skirt"],
+                            self._bow_images["TORSO_leather_armor_shirt_white"]]
+
+        return plainclothes
 
     def make_platearmor(self):
         platearmor_icon = self.get_icon("platearmor")
@@ -290,6 +323,20 @@ class Game:
         arrow_ammo.anim_image = [self._bow_images["WEAPON_arrow"]]
         return arrow_ammo
 
+    """ NPC definitions """
+    def make_roman_soldier(self, x, y):
+        hands = Weapon("Hands", self.hands_icon, type_ = "slash", damage = 2)
+        spear = self.make_spear()
+        armor = self.make_roman_platearmor()
+
+        soldier = NPC(x, y, self.make_standard_male(),
+                      armor,
+                      hands)
+        soldier.add_to_inventory(spear)
+        soldier.equip_weapon(spear)
+
+        return soldier
+
 
     """ Game initalization """
     def init_game(self):
@@ -354,18 +401,15 @@ class Game:
 
         self.load_legionarmor()
 
-        hands_icon = self.get_icon("hands")
-        hands = Weapon("Hands", hands_icon, type_ = "slash", damage = 2)
+        self.hands_icon = self.get_icon("hands")
+        hands = Weapon("Hands", self.hands_icon, type_ = "slash", damage = 2)
 
-        robe = self.make_unhooded_robe()
+        plainclothes = self.make_plainclothes()
 
         self.player = Player(300, 300,
-                             self._walkcycle_images, 
-                             self._slash_images,
-                             self._thrust_images,
-                             self._bow_images,
-                             self._hurt_images,
-                             robe)
+                             self.make_standard_male(),
+                             plainclothes,
+                             hands)
 
         init_script = triggerscripts["game_init"]
         init_values = init_script()
@@ -373,9 +417,6 @@ class Game:
         self._projectiles = []
         map_name, new_player_position, new_cam_position = init_values[2]
         self.load_new_map(map_name, new_player_position, new_cam_position)
-
-        self.player.add_to_inventory(hands)
-        self.player.equip_weapon("Hands")
 
         self.npcs = [] # NPCs currently in the map
         self.loot = [] # loot currently on the map
@@ -409,8 +450,17 @@ class Game:
 
     def manual_initial_item_setup(self):
         """ For adding extra items to the map or player on startup. """
-        dagger = self.make_dagger()
-        self.loot.append(Loot(600, 350, dagger, 0))
+        spear = self.make_spear()
+        self.loot.append(Loot(600, 350, spear, 0))
+        platearmor = self.make_roman_platearmor()
+        self.loot.append(Loot(800, 350, platearmor, 0))
+        bow = self.make_bow()
+        self.loot.append(Loot(400, 350, bow, 0))
+        arrows = self.make_arrow_ammo(50)
+        self.loot.append(Loot(450, 350, arrows, 0))
+
+        new_soldier = self.make_roman_soldier(1000, 350)
+        self.npcs.append(new_soldier)
 
     def on_event(self, event):
         if event.type == pygame.QUIT:
@@ -429,6 +479,18 @@ class Game:
                                 self.player.unequip_ammo()
                             else:
                                 self.player.equip_ammo(self._hover_item[1])
+            elif event.button == 3:
+                if self._paused:
+                    if self._hover_item is not None:
+                        item = self._hover_item[0]
+                        if isinstance(item, Weapon):
+                            self.player.remove_from_inventory(item)
+                        if isinstance(item, Outfit):
+                            self.player.remove_outfit(item)
+                        if isinstance(self._hover_item[0], Ammo):
+                            if self.player.equipped_ammo == self._hover_item[0]:
+                                self.player.unequip_ammo()
+                            self.player.remove_from_inventory(self._hover_item[0])
 
         if event.type == pygame.KEYDOWN:
             if not self._paused:
@@ -443,6 +505,10 @@ class Game:
                         self._inventory == False
                         if self._inv_hint in self._messageboxes:
                             self._messageboxes.remove(self._inv_hint)
+                            inv_hint_1 = MessageBox("Click an item in the inventory to equip it.", self.font_normal, self._width, self._height)
+                            inv_hint_2 = MessageBox("Right click an item in the inventory to discard it.", self.font_normal, self._width, self._height)
+                            self._messageboxes.append(inv_hint_2)
+                            self._messageboxes.append(inv_hint_1)
                 else:
                     self._paused = True
                     self._inventory = True
@@ -517,26 +583,24 @@ class Game:
         self._paused_render = self.inventory_render
 
 
-    """ Game loop methods """
-    def standard_loop(self, action, move_array, key_states):
-        """ Normal gameplay loop """
-        """ Player step """
-        self._player_data = self.player.step(self._day_time, action, move_array, key_states[pygame.K_LSHIFT])
-
-        if self._player_data[2][0] is not None:
+    def character_attack(self, char_data, character):
+        """ Check character data for whether or not a character is attacking,
+        and handle the attack hitbox appropriately.
+        """
+        if char_data[2][0] is not None:
             """ Character is attacking """
-            rect = self._player_data[2][0]
-            attack_weapon = self._player_data[2][1]
+            rect = char_data[2][0]
+            attack_weapon = char_data[2][1]
 
             if attack_weapon.ranged is True:
                 """ Make projectile """
-                if self.player.equipped_ammo is not None:
+                if character.equipped_ammo is not None:
                     direction = attack_weapon.facing
                     x, y = rect.center
                     if direction == 1 or direction == 3:
                         y -= 12 # move arrow up to align with character
-                    new_projectile = self.player.equipped_ammo.projectile_type(x, y, direction)
-                    self.player.equipped_ammo.reduce_amount()
+                    new_projectile = character.equipped_ammo.projectile_type(x, y, direction)
+                    character.equipped_ammo.reduce_amount()
                     img_ = new_projectile.image
                     layer = self._images[img_[0]][img_[1]]
                     projectile_surf = pygame.Surface((64, 64), pygame.SRCALPHA)
@@ -548,19 +612,67 @@ class Game:
 
                     self._projectiles.append([new_projectile, projectile_surf])
             else:
-                self.attack_rects[self.player] = self._player_data[2]
+                self.attack_rects[character] = char_data[2]
+
+    def character_motion(self, char_position, movement, character, characterhitbox):
+        if not character.can_move:
+            return
+        candidate_pos = char_position.copy()
+        movement_x = movement[0]
+        movement_y = movement[1]
+        """ Collision testing the character """
+        if character in self.hitboxes:
+            hitboxes_no_character = self.hitboxes.copy()
+            del hitboxes_no_character[character]
+        else:
+            hitboxes_no_character = self.hitboxes
+        if movement_x > 0:
+            candidate_hitbox = characterhitbox.move(movement_x + 1, 0)
+            collides = candidate_hitbox.collidedict(hitboxes_no_character, 1)
+            if collides is not None:
+                movement_x = 0
+        elif movement_x < 0:
+            candidate_hitbox = characterhitbox.move(movement_x - 1, 0)
+            collides = candidate_hitbox.collidedict(hitboxes_no_character, 1)
+            if collides is not None:
+                movement_x = 0
+
+        if movement_y > 0:
+            candidate_hitbox = characterhitbox.move(0, movement_y + 1)
+            collides = candidate_hitbox.collidedict(hitboxes_no_character, 1)
+            if collides is not None:
+                movement_y = 0
+        elif movement_y < 0:
+            candidate_hitbox = characterhitbox.move(0, movement_y - 1)
+            collides = candidate_hitbox.collidedict(hitboxes_no_character, 1)
+            if collides is not None:
+                movement_y = 0
+
+        candidate_pos[0] += movement_x
+        candidate_pos[1] += movement_y
+
+        character.set_pos(candidate_pos)
+
+    """ Game loop methods """
+    def standard_loop(self, action, move_array, key_states):
+        """ Normal gameplay loop """
+        """ Player step """
+        self._player_data = self.player.step(self._day_time, action, move_array, key_states[pygame.K_LSHIFT])
+        self.character_attack(self._player_data, self.player)
 
         self.hitboxes[self.player] = self._player_data[3]
         
+        for _, hitbox in self.map.collision_hitboxes + self.map.water_hitboxes:
+            self.hitboxes[_] = hitbox
+
         """ NPC steps """
         self._npc_datas = []
         for npc in self.npcs:
-            npc_data = npc.step(self._day_time)
+            npc_data = npc.step(self._day_time, self._player_data[0])
+            self.character_motion(npc_data[0], npc_data[4], npc, npc_data[3])
             self.hitboxes[npc] = npc_data[3]
             self._npc_datas.append(npc_data)
-
-        for _, hitbox in self.map.collision_hitboxes + self.map.water_hitboxes:
-            self.hitboxes[_] = hitbox
+            self.character_attack(npc_data, npc)
 
         """ Check for loot pickups """
         del_loot = []
@@ -601,9 +713,11 @@ class Game:
                     try:
                         if isinstance(attack_weapon, list):
                             target.take_damage(attack_weapon[0].damage)
+                            self.character_motion(target.position, target.position - actor.position, target, self.hitboxes[target])
                             if isinstance(attack_weapon[0], Projectile):
                                 del_projectiles.append(attack_weapon)
                         else:
+                            self.character_motion(target.position, target.position - actor.position, target, self.hitboxes[target])
                             target.take_damage(attack_weapon.damage)
                     except AttributeError:
                         """ Target can't take damage """
@@ -615,8 +729,8 @@ class Game:
             if projectile in self._projectiles:
                 self._projectiles.remove(projectile)
 
-        candidate_pos = self._player_data[0].copy()
         playerhitbox = self.hitboxes[self.player]
+        candidate_pos = self._player_data[0].copy()
         movement_x = self._player_data[4][0]
         movement_y = self._player_data[4][1]
 
@@ -659,6 +773,7 @@ class Game:
                         trigger[0].untrigger()
                 else:
                     print(f"Attempted to trigger '{trigger_name}', but it does not exist in triggerscripts.")
+                    
                     
         """ Collision testing the player """
         hitboxes_no_player = self.hitboxes.copy()
@@ -796,11 +911,11 @@ class Game:
         for npc_data in self._npc_datas:
             npc_position = npc_data[0]
             npc_surf = npc_data[1]
-            yshifts.append(npc_data[4])
-            shadow = npc_data[2]
+            yshifts.append(npc_data[6])
+            shadow = npc_data[5]
 
-            if npc_data[5] is not None:
-                healthbars.append(npc_data[5])
+            if npc_data[7] is not None:
+                healthbars.append(npc_data[7])
 
             if shadow_state <= 20:
                 shadows[shadow] = (npc_position[0] - sprite_size//2, npc_position[1] + sprite_size//2 - 8)
@@ -808,7 +923,7 @@ class Game:
                 shadows[shadow] = (npc_position[0] - sprite_size//2, npc_position[1] + sprite_size//2 - shadow.get_height() - 3)
 
             item_surfs.append(npc_surf)
-            item_positions.append([npc_position[0] - sprite_size//2, npc_position[1] - sprite_size//2])
+            item_positions.append([npc_position[0] - sprite_size//2, npc_position[1] - sprite_size//2 - yshifts[-1]])
 
         """ get projectile surfs """
         for projectile, surf in self._projectiles:
