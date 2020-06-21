@@ -20,7 +20,12 @@ class Game:
         """ General setup for the game.
 
         Keyword arguments:
-        AA_text - 
+        AA_text -- boolean, whether or not to draw text with anti-aliasing.
+                   (default True)
+        draw_hitboxes -- boolean, whether or not to draw the hitboxes of character
+                         and items (default False)
+        draw_triggers -- boolean, whether or not to draw the hitboxes of triggers
+                         (default False)
         """
         self._running = True
         self._screen = None
@@ -47,9 +52,13 @@ class Game:
 
     def load_image_folder(self, folder_name, dict):
         """ Load images from all sprite folders with the given folder name
-        into the specified dictionary
+        into the specified dictionary.
+
+        Arguments:
+        folder_name -- folder to load images from, e.g. 'walkcycle' or 'slash'
+        dict -- dictionary to load images into
         """
-        print(f"Loading images from: sprites.wulax.{folder_name}")
+        print(f"Loading images from: sprites.wulax.png.{folder_name}")
         files = glob.glob(os.path.join(os.getcwd(),
                                        "sprites",
                                        "wulax",
@@ -57,6 +66,7 @@ class Game:
                                        folder_name,
                                        "*.png"))
 
+        print(f"Loading images from: sprites.wulax.png.64x64.{folder_name}")
         files += glob.glob(os.path.join(os.getcwd(),
                                         "sprites",
                                         "wulax",
@@ -84,6 +94,7 @@ class Game:
 
         Arguments:
         image_path -- list containing the path to the image from game folder.
+        name -- name of the object being loaded.
         """
         path = os.path.join(os.getcwd(), *image_path)
         print(f"Loading image: {'.'.join(image_path)}")
@@ -114,6 +125,7 @@ class Game:
         self._images["hurt"][name] = hurt_surf
 
     def load_icons(self):
+        """ Load all the icons from the icons folder. """
         files = glob.glob(os.path.join(os.getcwd(),
                                        "sprites",
                                        "icons",
@@ -130,6 +142,7 @@ class Game:
         return img
 
     def load_legionarmor(self):
+        """ Load all the legion armor images. """
         self.load_image_animations_combined(["sprites", "legionarmor", "Male_sandals.png"], "FEET_legionarmor_sandals_male")
         self.load_image_animations_combined(["sprites", "legionarmor", "Male_legionSkirt.png"], "LEGS_legionarmor_skirt_male")
         self.load_image_animations_combined(["sprites", "legionarmor", "plate", "Male_legionplate_steel.png"], "TORSO_legionarmor_plate_steel_male")
@@ -156,6 +169,14 @@ class Game:
 
     """ Body images definitions """
     def make_standard_male(self):
+        """ Create a dictionary to pass to the character 'images' argument with the
+        images for a standard male with blonde hair.
+
+        Returns:
+        body_image_collection -- the dictionary containing the images. Can be passed
+                                 directly as the 'images' argument when making a new
+                                 character.
+        """
         body_image_collection = {}
         body_image_collection["walkcycle"] = [self._walkcycle_images["BODY_male"], self._walkcycle_images["HEAD_hair_blonde"]]
         body_image_collection["slash"] = [self._slash_images["BODY_male"], self._slash_images["HEAD_hair_blonde"]]
@@ -167,6 +188,11 @@ class Game:
 
     """ Outfit definitions """
     def make_unhooded_robe(self):
+        """ Make a new Outfit object for an unhooded robe.
+        
+        Returns:
+        robe -- The Outfit object of a robe.        
+        """
         robe_icon = self.get_icon("robe")
         looticon = self.get_icon("robe_looticon")
         robe = Outfit("Unhooded robe", robe_icon, looticon = looticon, armor = 2, lootname = "a robe without a hood")
@@ -189,6 +215,11 @@ class Game:
         return robe
 
     def make_plainclothes(self):
+        """ Make a new Outfit object for plain clothes.
+        
+        Returns:
+        plainclothes -- The Outfit object of some plain clothes.        
+        """
         icon = self.get_icon("plainclothes")
         looticon = self.get_icon("plainclothes_looticon")
         plainclothes = Outfit("Plain clothes", icon, looticon = looticon, armor = 1, lootname = "some plain clothes")
@@ -211,6 +242,11 @@ class Game:
         return plainclothes
 
     def make_platearmor(self):
+        """ Make a new Outfit object for medieval plate armor.
+        
+        Returns:
+        platearmor -- The Outfit object of the armor.        
+        """
         platearmor_icon = self.get_icon("platearmor")
         looticon = self.get_icon("platearmor_looticon")
         platearmor = Outfit("Plate armor", platearmor_icon, looticon = looticon, has_hood = True, armor = 5, lootname = "a set of plate armor")
@@ -248,6 +284,11 @@ class Game:
         return platearmor
 
     def make_roman_platearmor(self, color = "steel"):
+        """ Make a new Outfit object for Roman legion plate armor.
+        
+        Returns:
+        legionarmor -- The Outfit object of the armor.        
+        """
         color = color.lower()
         legionarmor_icon = self.get_icon(f"legionarmor_{color}")
         legionarmor_looticon = self.get_icon(f"legionarmor_{color}_looticon")
@@ -282,6 +323,11 @@ class Game:
         return legionarmor
 
     def make_quiver(self):
+        """ Make a quiver 'Extra item'
+        
+        Returns:
+        quiver -- The Extra_Item object of the quiver.        
+        """
         quiver_icon = self.get_icon("bow")
         quiver = Quiver("Quiver", quiver_icon)
         quiver.walkcycle = [self._walkcycle_images["BEHIND_quiver"]]
@@ -325,6 +371,15 @@ class Game:
 
     """ NPC definitions """
     def make_roman_soldier(self, x, y):
+        """ Make a new roman soldier NPC. 
+        
+        Arguments:
+        x -- initial x-position
+        y -- initial y-position
+
+        Returns:
+        soldier -- the character as an NPC object.
+        """
         hands = Weapon("Hands", self.hands_icon, type_ = "slash", damage = 2)
         spear = self.make_spear()
         armor = self.make_roman_platearmor()
@@ -340,6 +395,7 @@ class Game:
 
     """ Game initalization """
     def init_game(self):
+        """ Loads and sets up the game. """
         pygame.init()
         pygame.display.set_caption("Game")
         self._screen = pygame.display.set_mode(self._size, pygame.HWSURFACE | pygame.DOUBLEBUF)
@@ -463,6 +519,7 @@ class Game:
         self.npcs.append(new_soldier)
 
     def on_event(self, event):
+        """ pygame event handling """
         if event.type == pygame.QUIT:
             self._running = False
 

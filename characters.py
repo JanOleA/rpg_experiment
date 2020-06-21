@@ -4,7 +4,7 @@ import numpy as np
 import pygame
 from pygame.locals import *
 
-from items import Weapon, Outfit, Ammo, Quiver
+from items import Weapon, Outfit, Ammo, Quiver, Extra_Item
 
 slm = np.logspace(0.3, -0.8, 20)*0.6 # shadow length modifiers
 
@@ -14,6 +14,26 @@ class Character:
                  body_images,
                  starting_outfit,
                  hands = None):
+        """ General initialization for characters that move.
+        
+        Arguments:
+        x -- starting x-position
+        y -- starting y-position
+        body_images -- dictionary containing images for the characters body and
+                       hair. Must have the following keys:
+                            walkcyckle
+                            slash
+                            thrust
+                            bow
+                            hurt
+        starting_outfit -- outfit the character starts with, must be Outfit
+                           object.
+        
+        Keyword arguments:
+        hands -- Weapon object the character always has. For humans this is
+                 typically their hands, which are treated as a Weapon type.
+                 (default None)
+        """
         self.id = f"{self.__class__.__name__}-{id(self)}"
 
         self.walkcycle = body_images["walkcycle"]
@@ -62,15 +82,39 @@ class Character:
             self.equip_weapon(hands)
 
     def add_outfit(self, outfit):
+        """ Add an Outfit object to the characters outfit inventory.
+        
+        Arguments:
+        outfit -- the Outfit object to add to the inventory. If it is not the
+                  correct type a messagse will be printed to the console.
+        """
         if not outfit in self._outfits:
-            self._outfits.append(outfit)
+            if isinstance(outfit, Outfit):
+                self._outfits.append(outfit)
+            else:
+                print(f"Attempted to add outfit: {outfit} to character {self}")
+                print(f"but {outfit} is type: {type(outfit)}")
 
     def equip_outfit(self, index):
+        """ Equip an outfit from the character's outfit inventory. Sets the
+        characters state to idle and resets the animation loop.
+        
+        Arguments:
+        index -- index in the outfit inventory where the outfit is stored.
+        """
         self._outfit = self._outfits[index]
         self.set_state("idle")
         self._anim_step = 0
 
     def equip_weapon(self, key):
+        """ Equip a weapon from the characters inventory.
+        
+        Arguments:
+        key -- The key in the inventory dictionary the item is stored at.
+               Alternatively the object itself can be passed as the argument, 
+               and will be equipped if it exists in the inventory and is a
+               Weapon object.
+        """
         if key in self._inventory:
             if isinstance(self._inventory[key], Weapon):
                 self._equipped_weapon = self._inventory[key]
@@ -80,13 +124,37 @@ class Character:
                     self._equipped_weapon = self._inventory[k]
 
     def equip_ammo(self, key):
-        if isinstance(self._inventory[key], Ammo):
-            self._equipped_ammo = self._inventory[key]
+        """ Equip an ammunition type from the characters inventory.
+        
+        Arguments:
+        key -- The key in the inventory dictionary the item is stored at.
+               Alternatively the object itself can be passed as the argument, 
+               and will be equipped if it exists in the inventory and is an
+               Ammo object.
+        """
+        if key in self._inventory:
+            if isinstance(self._inventory[key], Ammo):
+                self._equipped_ammo = self._inventory[key]
+        else:
+            for k, item in self._inventory.items():
+                if item == key and isinstance(item, Ammo):
+                    self._equipped_ammo = self._inventory[k]
 
     def unequip_ammo(self):
         self._equipped_ammo = None
 
     def add_to_inventory(self, item):
+        """ Add an item to the characters inventory. 
+        
+        Arguments:
+        item -- The object to add to the inventory. If the object is an Outfit
+                object it will be added to the outfit list. Otherwise it will
+                be added to the inventory dictionary with a key generated from
+                its name.
+                If the item is an Ammo type and the same type of Ammo already
+                exists in the inventory, the number of Ammo in 'item' will be
+                added to the object already in the inventory.
+        """
         if isinstance(item, Outfit):
             self.add_outfit(item)
             return
@@ -105,6 +173,13 @@ class Character:
         self._inventory[itemname] = item
 
     def remove_from_inventory(self, item):
+        """ Remove an item from the inventory dictionary.
+        
+        Arguments:
+        item -- The item itself or the key to the item in the inventory dictionary.
+                If the item is an equipped weapon it will first be unequipped.
+                The characters "hands" cannot be removed.
+        """
         if item == self._hands:
             return
         if item == self._equipped_weapon:
@@ -118,6 +193,12 @@ class Character:
                     return
 
     def remove_outfit(self, item):
+        """ Remove an outfit from the outfit list, unless it is the currently
+        equipped outfit.
+
+        Arguments:
+        item -- The object to remove from the list.
+        """
         if item in self._outfits and self._outfit != item:
             self._outfits.remove(item)
 
@@ -128,25 +209,36 @@ class Character:
         return self._outfits
 
     def add_extra_item(self, item):
-        self.behind = item
-        if self._state == "walk" or self._state == "idle":
-            self._behind_anim = item.walkcycle
-        elif self._state == "slash":
-            self._behind_anim = self.behind.slash
-        elif self._state == "thrust":
-            self._behind_anim = self.behind.thrust
-        elif self._state == "idle":
-            self._behind_anim = self.behind.walkcycle
-        elif self._state == "bow":
-            self._behind_anim = self.behind.bow
-        elif self._state == "dead":
-            self._behind_anim = self.behind.hurt
+        """ Give the character an 'Extra item'. These are items that are purely 
+        cosmetic and carried behind the normal sprite. E.g. arrow quivers. 
+        """
+        if isinstance(item, Extra_Item):
+            self.behind = item
+            if self._state == "walk" or self._state == "idle":
+                self._behind_anim = item.walkcycle
+            elif self._state == "slash":
+                self._behind_anim = self.behind.slash
+            elif self._state == "thrust":
+                self._behind_anim = self.behind.thrust
+            elif self._state == "idle":
+                self._behind_anim = self.behind.walkcycle
+            elif self._state == "bow":
+                self._behind_anim = self.behind.bow
+            elif self._state == "dead":
+                self._behind_anim = self.behind.hurt
 
     def remove_extra_item(self):
+        """ Remove the 'Extra item' from the character if it has one equipped. """
         self.behind = None
         self._behind_anim = []
 
     def get_weapon_hit_rect(self):
+        """ Create and return the pygame rect that is the hitbox from the currently equipped
+        weapon.
+
+        Returns:
+        attac_rect -- hitbox for weapon strike as pygame Rect object.
+        """
         if self._facing == 0:
             attac_rect = pygame.Rect(self._position[0] - 5, self._position[1] - self.equipped_weapon.range - 10, 10, self.equipped_weapon.range)
         elif self._facing == 2:
@@ -158,6 +250,20 @@ class Character:
         return attac_rect
 
     def set_state(self, state):
+        """ Set the current state of the character and reset the animation loop.
+        Sets the correct animation files based on the images given in initialization,
+        and from the outfit and weapon objects.
+
+        Arguments:
+        state -- the state to set the character to. The possible options are:
+                 walk - walking
+                 slash - attacking with a slashing weapon (sword, dagger, etc.)
+                 thrust - attacking with a thrusting weapon (spear, etc.)
+                 idle - standing still
+                 bow - attacking with a bow
+                 dead -- dying/dead
+
+        """
         self._shadowlength_modifier = 1
         if state == "walk":
             self._state = "walk"
@@ -212,9 +318,20 @@ class Character:
         self._anim_step = 0
 
     def set_pos(self, pos):
-        self._position = pos
+        """ Set the player position. Stores it as a Numpy array.
+        
+        Arguments:
+        pos -- iterable containing the position as x,y coordinates.
+        """
+        self._position = np.array(pos)
 
     def take_damage(self, damage):
+        """ Reduce the characters health, and if it reaches 0 set the state to
+        dead.
+        
+        Arguments:
+        damage -- how much damage to inflict on the character.
+        """
         if self._state != "dead":
             self._health -= damage
             if self._health <= 0:
@@ -223,7 +340,22 @@ class Character:
                 self._health = 0
                 self._facing = 0
 
+    def attack(self):
+        """ Character attack, if the current state allows it. """
+        if self._state == "idle" or (self._state == "walk" and self._anim_step == 8):
+            self.set_state(self._equipped_weapon.type)
+
     def color_surface(self, surface, red, green, blue, alpha):
+        """ Color a pygame Surface in the given color.
+        
+        Arguments:
+        surface -- the pygame Surface to color.
+        red -- red value to give the pixels.
+        green -- green value to give the pixels.
+        blue -- blue value to give the pixels.
+        alpha -- alpha value to give the pixels. Will be applied to all pixels
+                 in the surface that do not have an alpha value of 0.
+        """
         arr = pygame.surfarray.pixels3d(surface)
         arr[:,:,0] = red
         arr[:,:,1] = green
@@ -231,6 +363,7 @@ class Character:
 
         alphas = pygame.surfarray.pixels_alpha(surface)
         alphas[alphas != 0] = alpha
+
 
     """ Step forwards methods """
     def check_state(self, action = None):
@@ -341,7 +474,24 @@ class Character:
         return char_surf, hitbox
 
     def step(self, day_time):
-        """ Main method for character control. Runs on every frame. """
+        """ Main method for character control. Runs on every frame.
+        
+        Arguments:
+        day_time -- The current day_time of the game. day_time runs from
+                    0 to 400, with 0 being sunrise and 200 being sunset.
+
+        Returns:
+        self._position -- the position of the character in x,y coordinates.
+        char_surf -- the pygame Surface for the character.
+        [attack_rect, self.equipped_weapon] -- list containing the weapon strike
+                                               hitbox and the currently equipped
+                                               weapon. If the character is not
+                                               attacking currently the hitbox
+                                               will be None.
+        hitbox -- the characters hitbox.
+        movement -- the character current movement as dx,dy coordinates.
+        self._shadow -- the characters shadow pygame Surface.
+        """
         attack_rect = self.check_state()
         movement = self.movement()
         char_surf, hitbox = self.make_sprite(day_time)
@@ -383,7 +533,7 @@ class Character:
 
 
 class NPC(Character):
-    """ Superclass for non-player characters """
+    """ Class for non-player characters. See superclass for detailed docstrings. """
     def __init__(self, x, y,
                  body_images,
                  starting_outfit,
@@ -397,6 +547,7 @@ class NPC(Character):
         self._healthbar = None
         self._last_facing_change = time.time() - 0.3
         self._last_hit_timer = 60
+        self.status = "passive"
 
     def take_damage(self, damage):
         if self._state != "dead":
@@ -417,6 +568,8 @@ class NPC(Character):
 
             if dist_to_target > 32:
                 movement = np.round(dir_to_target*self._speed)
+            else:
+                self.attack()
 
             now_time = time.time()
 
@@ -479,6 +632,7 @@ class NPC(Character):
 
 
 class Player(Character):
+    """ Class for the player character. See superclass for detailed docstrings. """
     def __init__(self, x, y,
                  body_images,
                  starting_outfit,
@@ -489,6 +643,25 @@ class Player(Character):
                          hands)
 
     def movement(self, action, move_array, sprint):
+        """ Handles the movement calculation based on input by the player.
+        
+        Arguments:
+        action -- what action the player currently wants the character to do.
+                  The options are:
+                      0 - move up
+                      1 - move left
+                      2 - move down
+                      3 - move right
+                      4 - attack
+        move_array -- iterable with 1's for the directions the player wants to move
+                      and 0 otherwise:
+                          move_array[0] == 1 -> up
+                          move_array[1] == 1 -> left
+                          move_array[2] == 1 -> down
+                          move_array[3] == 1 -> right
+        sprint -- boolean, whether or not the player currently wants the
+                  character to sprint.
+        """
         if sprint and self._state == "walk":
             self._stamina -= 0.2
             if self._stamina > 0:
@@ -547,8 +720,7 @@ class Player(Character):
                     self._facing = 3
                     self.set_state("walk")
             elif action == 4:
-                if self._state == "idle" or (self._state == "walk" and self._anim_step == 8):
-                    self.set_state(self._equipped_weapon.type)
+                self.attack()
             else:
                 if self._state == "walk":
                     self.set_state("idle")
